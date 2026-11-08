@@ -2,7 +2,7 @@
 
 All notable changes to Switchroom are recorded here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses [Semantic Versioning](https://semver.org/).
 
-## [0.1.0] — Unreleased
+## [0.1.0] — 2026-11-08
 
 ### Added
 
@@ -20,12 +20,15 @@ All notable changes to Switchroom are recorded here. The format follows [Keep a 
 - Vitest unit/component suite, Playwright browser flows with generated fixtures, strict TypeScript, ESLint, Prettier and GitHub Actions CI.
 - Documentation for the audio engine, decisions, local development, deployment, browser support and security.
 
+### Deployment and verification
+
+- Public deployment: <https://switchroom.ftallfettah.workers.dev>, smoke-tested on 2026-11-08.
+- Manual listening pass completed in Microsoft Edge on Windows 11 with WAV files; no clicks, pops, gaps, loudness jumps or dropouts were reported.
+
 ### Known limitations
 
-- Public Cloudflare deployment, the `v0.1.0` Git tag and GitHub release notes are pending. This changelog will move out of “Unreleased” only after the deployed site passes its smoke test.
-- A human listening pass with real speakers or headphones has not been completed.
-- Automated format coverage uses PCM WAV fixtures; MP3, FLAC, AAC and M4A decode behaviour still needs manual verification.
-- Branded Safari, Edge, Chrome Android and Safari iOS are untested.
+- MP3, FLAC, AAC and M4A decode and listening behaviour still need manual verification. Automated listening coverage uses PCM WAV.
+- Branded Chrome, branded Safari, Chrome Android and Safari iOS remain untested.
 - Playwright WebKit on Windows cannot decode local audio in the test environment, so its audio flows are skipped.
 - No waveforms, persistent library, sharing, accounts or server processing; these are deliberate v0.1 exclusions.
 

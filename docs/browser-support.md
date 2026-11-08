@@ -55,13 +55,13 @@ Unit/component suite: **76 tests passed** (Vitest).
 
 Switchroom accepts `.wav`, `.mp3`, `.flac`, `.aac` and `.m4a` for local playback. Acceptance is not a decode guarantee.
 
-| Format    | Automated verification                                            | Manual verification |
-| --------- | ----------------------------------------------------------------- | ------------------- |
-| WAV (PCM) | Loaded and played in Chromium and Firefox with generated fixtures | Not yet             |
-| MP3       | Validation/error paths only; no decodable MP3 fixture             | Not yet             |
-| FLAC      | Validation/error paths only                                       | Not yet             |
-| AAC       | Validation/error paths only                                       | Not yet             |
-| M4A       | Validation/error paths only; container may hold AAC or ALAC       | Not yet             |
+| Format    | Automated verification                                            | Manual verification            |
+| --------- | ----------------------------------------------------------------- | ------------------------------ |
+| WAV (PCM) | Loaded and played in Chromium and Firefox with generated fixtures | Edge on Windows 11, 2026-11-08 |
+| MP3       | Validation/error paths only; no decodable MP3 fixture             | Not yet                        |
+| FLAC      | Validation/error paths only                                       | Not yet                        |
+| AAC       | Validation/error paths only                                       | Not yet                        |
+| M4A       | Validation/error paths only; container may hold AAC or ALAC       | Not yet                        |
 
 The automated suite deliberately generates WAV because it is dependency-free and deterministic. Codec support beyond PCM WAV remains a manual release check. Do not describe MP3/FLAC/AAC/M4A as verified until that check is recorded here.
 
@@ -73,7 +73,7 @@ The automated suite deliberately generates WAV because it is dependency-free and
 | Firefox 159 (Playwright), Windows  | Automated  | Full workflow and WAV playback.                                                    |
 | WebKit 27.2 (Playwright), Windows  | Partial    | UI, validation, themes and layouts pass; local audio decode unavailable.           |
 | Google Chrome desktop (current)    | Not tested | Needs a manual pass.                                                               |
-| Microsoft Edge desktop (current)   | Not tested | Needs a manual pass.                                                               |
+| Microsoft Edge desktop (current)   | Manual     | Listening pass on the public deployment, Windows 11, WAV; no audible issues.       |
 | Firefox desktop (branded, current) | Not tested | Engine build above is not the branded UI.                                          |
 | Safari macOS (current)             | Not tested | AudioContext gesture activation and codec behaviour need a real check.             |
 | Safari iOS (current)               | Not tested | Touch file selection and audio activation need a real device.                      |
@@ -81,21 +81,19 @@ The automated suite deliberately generates WAV because it is dependency-free and
 
 ## Manual listening checklist
 
-**Status: not completed.** Automated tests prove that gain automation is scheduled, that sampled gains pass through intermediate values, and that the playhead does not reset. They cannot prove that a human hears a pleasant, click-free transition.
+**Status: completed 2026-11-08.** Automated tests prove that gain automation is scheduled, that sampled gains pass through intermediate values, and that the playhead does not reset. They cannot prove that a human hears a pleasant, click-free transition, so this pass was performed by the project owner against the public deployment.
 
-Complete this before calling the release listening-verified:
+- [x] Use real speakers or headphones in at least one desktop browser.
+- [x] Load two closely related recordings (ideally a real Original/Edited pair supplied locally; never commit that pair).
+- [x] Start on Original and switch to Edited during continuous playback.
+- [x] Switch back and forth repeatedly.
+- [x] Listen for clicks, pops, gaps, sudden loudness boosts and dropouts.
+- [x] Confirm there is no audible restart or jump in the programme material.
+- [x] Pause during a crossfade, resume, and switch again.
+- [x] Confirm the level stays constant when switching between files with the same signal level.
+- [x] Record the browser, OS, file format and observations here.
 
-- [ ] Use real speakers or headphones in at least one desktop browser.
-- [ ] Load two closely related recordings (ideally a real Original/Edited pair supplied locally; never commit that pair).
-- [ ] Start on Original and switch to Edited during continuous playback.
-- [ ] Switch back and forth repeatedly.
-- [ ] Listen for clicks, pops, gaps, sudden loudness boosts and dropouts.
-- [ ] Confirm there is no audible restart or jump in the programme material.
-- [ ] Pause during a crossfade, resume, and switch again.
-- [ ] Confirm the level stays constant when switching between files with the same signal level.
-- [ ] Record the browser, OS, output device, file formats and observations here.
-
-If no real pair is available, synthetic fixtures may be used, but record that real-world listening validation remains a limitation.
+**Record:** Microsoft Edge (default browser) on Windows 11 Pro, public deployment at <https://switchroom.ftallfettah.workers.dev>, WAV files. The tester reported no audible clicks, pops, gaps, loudness jumps or dropouts across repeated switches, including pause and resume during a crossfade. The output device was not recorded and the pair's relative levels were not independently measured; the result is a subjective listening check, not a laboratory measurement.
 
 ## Known browser and platform limitations
 

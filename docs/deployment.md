@@ -2,6 +2,10 @@
 
 Switchroom deploys as a static single-page app on Cloudflare Workers Static Assets. There is no server-side API, database, R2 bucket or Worker entry point.
 
+## Current deployment
+
+The v0.1.0 release is deployed at <https://switchroom.ftallfettah.workers.dev> (Worker name `switchroom`) and was smoke-tested against that URL on 2026-11-08. The remaining instructions describe how to reproduce or update that deployment.
+
 ## Prerequisites
 
 - A Cloudflare account with Workers enabled.

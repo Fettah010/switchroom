@@ -2,13 +2,15 @@
 
 **Hear the difference.** Switchroom is a local-first A/B audio player for comparing two versions of the same recording on one synchronized timeline. Load an Original and an Edited file, press Play, and switch between them mid-play through a real 180 ms Web Audio crossfade.
 
+**Live:** <https://switchroom.ftallfettah.workers.dev>
+
 Your audio never leaves the browser. There is no account, no upload, no backend storage and no analytics.
 
 ![Switchroom in the Light theme, with two loaded WAV files and the comparison player ready](docs/screenshots/desktop-light.png)
 
 ## Project status
 
-v0.1.0 source is complete and the automated suite passes. The public Cloudflare deployment, human listening validation and `v0.1.0` tag are still pending; see [Browser support](docs/browser-support.md) and the release notes for the current state. Nothing in this repository claims that a deployment has happened.
+v0.1.0 is publicly deployed at <https://switchroom.ftallfettah.workers.dev> and the automated suite passes. The manual listening pass was completed in Microsoft Edge on Windows 11 using WAV files; no clicks, pops, gaps, loudness jumps or dropouts were reported. Branded Safari, Chrome Android, Safari iOS and codecs other than WAV remain manually unverified. See [Browser support](docs/browser-support.md) for the exact matrix and release record.
 
 ## What v0.1 does
 
@@ -50,7 +52,7 @@ Switchroom accepts `.wav`, `.mp3`, `.flac`, `.aac` and `.m4a` files. The extensi
 
 Automated end-to-end checks pass in Playwright Chromium 158 and Firefox 159 on Windows 11, including file loading, playhead sync, A/B switching, gain automation, seeking, replace/remove, themes, keyboard access and reduced motion. Playwright WebKit 27.2 passes the UI and validation checks on Windows, but that build does not decode local audio in this environment, so its audio flows are skipped there.
 
-Branded Safari, Edge, Chrome Android and Safari iOS have **not** been manually verified for this release. Playwright WebKit is not identical to branded Safari. See [docs/browser-support.md](docs/browser-support.md) for the exact matrix, limitations and the still-outstanding human listening checklist.
+Microsoft Edge on Windows 11 was used for the manual listening pass against the public deployment with WAV files. Branded Chrome, branded Safari, Chrome Android and Safari iOS have **not** been manually verified for this release. Playwright WebKit is not identical to branded Safari. See [docs/browser-support.md](docs/browser-support.md) for the exact matrix, limitations and the listening record.
 
 ## Prerequisites
 
@@ -133,7 +135,7 @@ npx wrangler login   # one-time, browser-based authentication
 npm run deploy
 ```
 
-The deploy command builds and uploads the static assets to Cloudflare Workers. The `workers.dev` URL is printed by Wrangler and can also be found in the Cloudflare dashboard. Full instructions, including CI secret setup and post-deploy checks, are in [docs/deployment.md](docs/deployment.md).
+The deploy command builds and uploads the static assets to Cloudflare Workers. The current v0.1.0 deployment is <https://switchroom.ftallfettah.workers.dev>; Wrangler also prints the URL and the Cloudflare dashboard records it. Full instructions, including CI secret setup and post-deploy checks, are in [docs/deployment.md](docs/deployment.md).
 
 Never commit a Cloudflare token, `.env` file or any other credential.
 
@@ -169,7 +171,7 @@ docs/             Engine, decisions, development, deployment and support docs
 - v0.1 intentionally has no waveforms, persistent file library, sharing, accounts, analytics or server processing.
 - There are no global keyboard shortcuts. All controls are reachable with Tab and operable with standard keys, without stealing focus from browser or assistive-technology commands.
 - Automated browser coverage is desktop Chromium, Firefox and WebKit on Windows. Real mobile touch behaviour and branded Safari have not been verified.
-- A human listening pass through real speakers or headphones has not yet been completed for this release. Automated tests prove gain scheduling, playhead continuity and state transitions; they cannot prove that a transition sounds pleasant.
+- The manual listening pass covered WAV files in Microsoft Edge on Windows 11. MP3, FLAC, AAC and M4A decode and listening behaviour, mobile touch, and Safari audio activation still need manual checks. Automated tests prove gain scheduling, playhead continuity and state transitions; they cannot prove that a transition sounds pleasant in every browser.
 
 ## License
 
