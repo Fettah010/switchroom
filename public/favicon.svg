@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Switchroom">
+  <rect width="64" height="64" rx="14" fill="#0b0c0e" />
+  <path
+    d="M10 44C22 44 24 20 36 20C48 20 50 44 54 44"
+    fill="none"
+    stroke="#d6f26b"
+    stroke-width="3"
+    stroke-linecap="round"
+  />
+  <path
+    d="M10 20C22 20 24 44 36 44C48 44 50 20 54 20"
+    fill="none"
+    stroke="#f2f2ef"
+    stroke-opacity="0.45"
+    stroke-width="3"
+    stroke-linecap="round"
+  />
+  <circle cx="32" cy="32" r="3" fill="#d6f26b" />
+</svg>
