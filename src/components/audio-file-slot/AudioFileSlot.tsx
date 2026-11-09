@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState, type DragEvent } from 'react';
+import { motion, useReducedMotion } from 'motion/react';
 import { AlertTriangle, Check, FileAudio, LoaderCircle, Upload, X } from 'lucide-react';
 import type { AudioVersion } from '../../audio/audioTypes';
 import { formatFileSize, ACCEPT_ATTRIBUTE } from '../../audio/fileValidation';
 import { formatTime } from '../../audio/timeFormatting';
 import { usePlayer } from '../../hooks/usePlayer';
+import type { WaveformService } from '../../waveform/waveformTypes';
 
 const SLOT_COPY: Record<
   AudioVersion,
@@ -23,7 +25,13 @@ const SLOT_COPY: Record<
   },
 };
 
-export function AudioFileSlot({ version }: { version: AudioVersion }) {
+export function AudioFileSlot({
+  version,
+  waveformService,
+}: {
+  version: AudioVersion;
+  waveformService?: WaveformService;
+}) {
   const { engine, snapshot } = usePlayer();
   const info = snapshot[version];
   const copy = SLOT_COPY[version];
@@ -74,6 +82,10 @@ export function AudioFileSlot({ version }: { version: AudioVersion }) {
 
     const result = engine.loadFile(version, file);
     setSelectionError(result.ok ? null : result.message);
+
+    if (waveformService) {
+      waveformService.loadFile(result.ok ? file : null);
+    }
   }
 
   function handleDragEnter(event: DragEvent<HTMLElement>): void {
@@ -110,13 +122,34 @@ export function AudioFileSlot({ version }: { version: AudioVersion }) {
   function handleRemove(): void {
     setSelectionError(null);
     engine.removeFile(version);
+
+    if (waveformService) {
+      waveformService.loadFile(null);
+    }
   }
 
+  const reduceMotion = useReducedMotion();
+
+  const slotVariants = {
+    hidden: { opacity: 0, y: 16 },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: {
+        duration: reduceMotion ? 0 : 0.4,
+        ease: [0.16, 1, 0.3, 1] as const,
+      },
+    },
+  };
+
   return (
-    <article
+    <motion.article
       className={`slot slot--${version}${isDragging ? ' slot--dragging' : ''}`}
       aria-labelledby={`slot-${version}-title`}
       aria-busy={info.loading}
+      initial={reduceMotion ? false : 'hidden'}
+      animate={reduceMotion ? 'visible' : 'visible'}
+      variants={slotVariants}
       onDragEnter={handleDragEnter}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
@@ -265,6 +298,6 @@ export function AudioFileSlot({ version }: { version: AudioVersion }) {
       )}
 
       <p className="slot__privacy">Read in this tab only. Never uploaded.</p>
-    </article>
+    </motion.article>
   );
 }

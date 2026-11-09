@@ -29,18 +29,22 @@ async function chooseFile(
 }
 
 describe('Switchroom interface', () => {
-  it('presents both slots with labels and browse controls', () => {
+  it('presents both slots with labels and browse controls', async () => {
     setup();
 
     expect(
       screen.getByRole('heading', { level: 1, name: /Hear the difference/i }),
     ).toBeInTheDocument();
-    expect(screen.getByRole('heading', { level: 3, name: 'Original' })).toBeVisible();
-    expect(screen.getByRole('heading', { level: 3, name: 'Edited' })).toBeVisible();
+    await waitFor(() =>
+      expect(screen.getByRole('heading', { level: 3, name: 'Original' })).toBeVisible(),
+    );
+    await waitFor(() =>
+      expect(screen.getByRole('heading', { level: 3, name: 'Edited' })).toBeVisible(),
+    );
     expect(screen.getAllByRole('button', { name: /Choose or drop a file/i })).toHaveLength(2);
     expect(screen.getByLabelText('Choose Original audio file')).toBeInTheDocument();
     expect(screen.getByLabelText('Choose Edited audio file')).toBeInTheDocument();
-    expect(screen.getByText(/Local-only listening/i)).toBeVisible();
+    await waitFor(() => expect(screen.getByText(/Local-only listening/i)).toBeVisible());
     expect(screen.getByText(/does not upload or store your files/i)).toBeVisible();
   });
 
@@ -165,7 +169,7 @@ describe('Switchroom interface', () => {
     expect(window.localStorage.getItem('switchroom.theme')).toBe('system');
   });
 
-  it('exposes an accessible crossfade control with the documented range', () => {
+  it('exposes an accessible crossfade control with the documented range', async () => {
     const { engine } = setup();
     const slider = screen.getByRole('slider', { name: 'Crossfade' });
 
@@ -173,7 +177,7 @@ describe('Switchroom interface', () => {
     expect(slider).toHaveAttribute('max', '600');
     expect(slider).toHaveValue('180');
     expect(slider).toHaveAttribute('aria-valuetext', '180 milliseconds');
-    expect(screen.getByText('180 ms')).toBeVisible();
+    await waitFor(() => expect(screen.getByText('180 ms')).toBeVisible());
 
     fireEvent.change(slider, { target: { value: '600' } });
 

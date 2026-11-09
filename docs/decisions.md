@@ -80,6 +80,32 @@ An `AudioContext` state change away from `running`, or an unexpected media pause
 
 The v0.2 scope was reliability and precision for the local A/B player. Adding uploads, accounts, a saved library, share links, comments, waveforms or scheduled jobs would change the privacy model and the architecture for features that were not part of this release. The static SPA and two-deck engine were retained because they still satisfy the product: local files, instant switching and a shared timeline.
 
+## v0.3: waveforms, motion, sliders and layout stability
+
+### Waveform subsystem separate from the playback engine
+
+`ABAudioEngine` remains the source of truth for the playhead, decks and Web Audio graph. Waveform computation is a separate subsystem (`src/waveform/`) that receives the local `File`, derives compact downsampled peaks and never owns a playhead or a second timeline.
+
+- Playback readiness is independent from waveform readiness; Play never waits for waveform analysis.
+- Waveform work is cancellable and generation-safe (replace/remove/dispose invalidate in-flight requests).
+- Common PCM WAV is parsed directly in a Dedicated Worker; non-WAV codecs are decoded on the main thread (size/memory bounded) then reduced to peaks in the worker.
+- WebCodecs/`AudioDecoder` is optional and feature-detected; no FFmpeg/WASM.
+- Bounded resource policy: ~60 MB encoded-input / ~240 MB decoded-PCM ceilings on desktop, lower on ≤ 4 GB devices; up to 2400 buckets.
+- Large or unsupported files fall back to a plain timeline; playback stays available.
+- Canvas renderer; peaks never uploaded or persisted.
+
+### Motion
+
+Motion for React (`motion/react`) drives entrance reveals for the header, workspace heading, both file slots (short stagger), player and waveform, and the footnote/footer. Uses `viewport={{ once: true }}` and `opacity`/`transform` only so no layout is triggered. `useReducedMotion` is respected: entrance appears immediately with no travel animation. The audio crossfade is functional, not decoration, and is unaffected by reduced motion.
+
+### Slider system
+
+Timeline, master volume and crossfade share one custom-skinned native `input[type="range"]` family (`.range-control`) with shared rail/fill/thumb/focus tokens, touch-friendly 44 px hit areas, and monospaced tabular readouts. Crossfade min/max/default remain 80/600/180 ms; the setting stays session-only.
+
+### Layout stability
+
+The Play/Pause button keeps fixed geometry across Play / Starting… / Pause via a fixed icon box and reserved label width. The player top uses an intentional grid (transport + version selector) rather than unconstrained flex-wrap, so status-label changes do not move adjacent controls. The bottom status area has a reserved height.
+
 ## Theme handling
 
 - CSS custom properties define the palette; `data-theme="dark|light"` selects it.

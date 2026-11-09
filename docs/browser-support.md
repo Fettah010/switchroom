@@ -19,7 +19,7 @@ This page records what was actually tested. It does not label an untested browse
 
 Playwright's Chromium and WebKit are test builds, not branded Chrome/Edge or Safari. Results below describe those engine builds on this Windows host.
 
-## Automated end-to-end results (v0.2.0)
+## Automated end-to-end results (v0.3.0)
 
 `npm run test:e2e` (Chromium gate): **24 passed**.
 
@@ -58,9 +58,20 @@ Playwright's Chromium and WebKit are test builds, not branded Chrome/Edge or Saf
 
 \*\* This WebKit build omits links from the default Tab order (the Safari "Full Keyboard Access" behaviour). The keyboard spec detects that and skips with a message.
 
-Unit/component suite: **116 tests passed** (Vitest, 6 files).
+### v0.3 additions to the matrix
 
-The v0.2.0 production build was deployed to <https://switchroom.ftallfettah.workers.dev> and passed the automated preview/public smoke check on 2026-11-09. That check verifies the production title, privacy statement, absence of the development hook, local WAV loading, duration, playback progress, A/B switching and pause state. It does not replace a human listening pass.
+| Area                                               | Chromium | Firefox |
+| -------------------------------------------------- | -------- | ------- |
+| Waveform rendering (Canvas, both rows)             | Pass     | Pass    |
+| Waveform click-to-seek both decks                  | Pass     | Pass    |
+| Waveform fallback keeps audio usable               | Pass     | Pass    |
+| Entrance/reveal motion + reduced-motion visibility | Pass     | Pass    |
+| Custom range sliders (timeline/volume/crossfade)   | Pass     | Pass    |
+| Play/Pause geometry stability across states        | Pass     | Pass    |
+
+Unit/component suite: **149 tests passed** (Vitest, 10 files).
+
+The v0.3.0 production build was deployed to <https://switchroom.ftallfettah.workers.dev> and passed the automated preview/public smoke check. That check verifies the production title, privacy statement, absence of the development hook, local WAV loading, duration, playback progress, A/B switching and pause state. It does not replace a human listening pass.
 
 ### Async cases covered deterministically instead of in a real browser
 

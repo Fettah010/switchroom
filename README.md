@@ -10,24 +10,34 @@ Your audio never leaves the browser. There is no account, no upload, no backend 
 
 ## Project status
 
-v0.2.0 is publicly deployed at <https://switchroom.ftallfettah.workers.dev> and smoke-tested against that URL on 2026-11-09. The automated suite passes in Chromium and Firefox, and the production build is verified through the Workers runtime. The only human listening pass on record is the v0.1.0 session in Microsoft Edge on Windows 11 with WAV files; the v0.2.0 crossfade range and interruption recovery have not yet been listened to by a human. Branded Safari, Chrome Android, Safari iOS and codecs other than WAV remain manually unverified. See [Browser support](docs/browser-support.md) for the exact matrix and release record.
+v0.3.0 is publicly deployed at <https://switchroom.ftallfettah.workers.dev> and smoke-tested against that URL. The automated suite passes in Chromium and Firefox; WebKit on Windows skips audio-dependent specs because that build does not decode local audio in this environment. The only human listening pass on record is from v0.1.0 in Microsoft Edge on Windows 11 with WAV files; see [Browser support](docs/browser-support.md) for the exact matrix, manual checks, and listening record.
 
-## What v0.2 does
+## What v0.3 does
 
-- Two independent local file slots: **Original (A)** and **Edited (B)**.
-- WAV, MP3, FLAC, AAC and M4A files are accepted for local playback, subject to the browser's codecs.
-- Shows file name, size, format and duration for each slot.
-- One shared play/pause transport and one shared timeline that seeks both decks together, including while playing.
-- Audible **Original / Edited** switching while playback continues at the same point.
-- A real linear-amplitude Web Audio gain crossfade, not a visual-only toggle, with an adjustable 80–600 ms duration (180 ms by default).
-- Truthful **starting**, **switching** and **interrupted** states: the interface never claims a target is audible before its fade begins, and it distinguishes a device interruption from a normal pause.
-- Repeatable A/B switching in both directions, including rapid reversals, seeks during a switch and pause/resume during a fade.
-- Master volume and mute, independent of the selected version.
-- When the files differ in length, the common (shorter) duration is used and an explanatory note appears.
-- End-of-playback, replay, replace, remove, bounded metadata loading and load-error states.
-- System / Dark / Light themes, with the manual choice remembered across reloads.
-- Responsive layouts from 360 px to 1440 px, keyboard-operable controls, visible focus and reduced-motion support.
-- No waveforms, share links, accounts, comments or future-milestone placeholders.
+Everything in v0.2, plus:
+
+- **Waveform previews:** Original (A) and Edited (B) amplitude waveforms drawn on one shared time axis, with visible A/B labels. Waveform generation is local-only (downsampled peaks; no audio leaves the browser) and never blocks playback.
+- **Expressive shared timeline:** one playhead spans both waveform rows and the timeline slider; click or tap either waveform row to seek both decks together through the same canonical engine operation.
+- **Waveform states:** preparing, ready, fallback (skipped for large/unsupported analysis files) and unavailable; playback and seeking remain available whenever audio is playable.
+- **Worker-assisted peak generation** where a Dedicated Worker is available, with a bounded resource policy and generation-safe cancellation.
+- **Full-page entrance motion:** the workspace heading, both file slots (with a short stagger), the player and waveform, and the footnotes/footer all reveal deliberately; dropzones have hover, focus, press and drag feedback.
+- **Custom range-control system:** the timeline, master volume and crossfade sliders share one premium skin with visible progress, touch-friendly hit areas and theme-appropriate rail/thumb/focus styling.
+- **Stable Play/Pause UI:** the play button keeps fixed geometry through Play / Starting… / Pause, and surrounding controls do not jump when status labels change.
+
+No waveforms, share links, accounts, comments or future-milestone placeholders are persisted; v0.3 remains strictly local-first.
+
+## Privacy
+
+**Local-only listening. Your audio stays in this browser. Switchroom does not upload or store your files.**
+
+How that is enforced:
+
+- Files are read through the browser's `File` API and played from in-memory object URLs.
+- Waveform peaks are derived from local files and never uploaded, persisted or sent to a server.
+- Nothing is sent to a server. The production build has no API, no account, no database and no analytics.
+- Object URLs are revoked when a file is replaced, removed, fails to load, or the app is disposed.
+- No file bytes, metadata or peaks are written to `localStorage`, `sessionStorage`, IndexedDB or Cache Storage.
+- The only persisted value is the manual theme choice, under the key `switchroom.theme`.
 
 ## Privacy
 

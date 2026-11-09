@@ -1,7 +1,6 @@
 import '@testing-library/jest-dom/vitest';
 import { cleanup } from '@testing-library/react';
 import { afterEach, beforeEach, vi } from 'vitest';
-
 export interface MatchMediaController {
   matches: boolean;
   listeners: Set<(event: MediaQueryListEvent) => void>;
@@ -37,6 +36,22 @@ export function installMatchMedia(initialMatches = false): MatchMediaController 
 
   return controller;
 }
+
+// jsdom does not implement ResizeObserver. Provide a minimal no-op stub so
+// components that measure their container can mount in unit tests.
+class ResizeObserverStub {
+  observe(): void {
+    // no-op
+  }
+  unobserve(): void {
+    // no-op
+  }
+  disconnect(): void {
+    // no-op
+  }
+}
+
+vi.stubGlobal('ResizeObserver', ResizeObserverStub);
 
 beforeEach(() => {
   installMatchMedia(false);

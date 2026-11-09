@@ -111,6 +111,30 @@ test.describe('theme and responsive layout', () => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto('/');
 
+    // Let the entrance reveal complete so layout measurements are stable.
+    await page.waitForFunction(() => {
+      const original = document.querySelector('.slot--original');
+      const edited = document.querySelector('.slot--edited');
+      return (
+        Boolean(original && edited) &&
+        window.getComputedStyle(original!).opacity === '1' &&
+        window.getComputedStyle(edited!).opacity === '1'
+      );
+    });
+
+    // Both slots share one grid row, so their top edges must align. Poll
+    // until the reveal stagger has settled in every engine.
+    await page.waitForFunction(() => {
+      const a = document.querySelector('.slot--original');
+      const b = document.querySelector('.slot--edited');
+      if (!a || !b) {
+        return false;
+      }
+      const ra = a.getBoundingClientRect();
+      const rb = b.getBoundingClientRect();
+      return Math.abs(ra.top - rb.top) <= 1;
+    });
+
     const originalBox = await page.locator('.slot--original').boundingBox();
     const editedBox = await page.locator('.slot--edited').boundingBox();
     expect(originalBox).not.toBeNull();

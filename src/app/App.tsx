@@ -2,6 +2,7 @@ import type { ABAudioEngine } from '../audio/ABAudioEngine';
 import { ThemeProvider } from './providers/ThemeProvider';
 import { PlayerProvider } from './providers/PlayerProvider';
 import { TopBar } from '../components/layout/TopBar';
+import { Reveal } from '../components/motion/Reveal';
 import { Hero } from '../components/layout/Hero';
 import { PageAtmosphere } from '../components/layout/PageAtmosphere';
 import { Footer } from '../components/layout/Footer';
@@ -19,14 +20,18 @@ export function App({ engine }: { engine?: ABAudioEngine }) {
           <PageAtmosphere />
 
           <div className="page__content">
-            <TopBar />
+            <Reveal className="site-header-wrap" viewport={false}>
+              <TopBar />
+            </Reveal>
 
             <main id="main">
               <Hero />
               <ComparisonWorkspace />
             </main>
 
-            <Footer />
+            <Reveal viewport duration={320}>
+              <Footer />
+            </Reveal>
           </div>
         </div>
       </PlayerProvider>

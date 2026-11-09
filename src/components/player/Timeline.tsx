@@ -14,7 +14,7 @@ export function Timeline() {
   return (
     <div className="timeline">
       <input
-        className="timeline__range"
+        className="range-control range-control--timeline"
         type="range"
         min={0}
         max={duration || 0}
@@ -24,7 +24,7 @@ export function Timeline() {
         aria-label="Playback position"
         aria-valuetext={`${formatTime(value)} of ${formatTime(duration)}`}
         onChange={(event) => engine.seek(Number(event.target.value))}
-        style={{ '--progress': `${percent}%` } as CSSProperties}
+        style={{ '--range-progress': `${percent}%` } as CSSProperties}
       />
 
       <div className="timeline__times">

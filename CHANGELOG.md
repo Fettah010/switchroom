@@ -2,6 +2,48 @@
 
 All notable changes to Switchroom are recorded here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses [Semantic Versioning](https://semver.org/).
 
+## [0.3.0] — 2026-11-09
+
+### Added
+
+- Original and Edited waveform previews drawn on one shared time axis, with visible A/B labels and a shared playhead.
+- Click/tap either waveform row to seek both decks through the existing canonical engine operation; the timeline slider seeks to the same canonical position.
+- Downsampled, bounded peak generation (max 2400 buckets) in a Dedicated Worker where available; WAV parsed directly in the worker, other codecs decoded on the main thread then reduced.
+- Bounded resource policy (~60 MB encoded-input / ~240 MB decoded-PCM ceilings on desktop, lower on ≤ 4 GB devices) with a designed fallback state for large or unsupported analysis files.
+- Waveform lifecycle states: waiting, preparing, ready, fallback and unavailable; playback remains available throughout.
+- Full-page entrance/reveal motion: header, workspace heading, both file slots (staggered), player and waveform, and footnote/footer; dropzone hover/focus/press/drag feedback.
+- A shared custom range-control system for the timeline, master volume and crossfade sliders, replacing browser-default range styling.
+- Stable Play/Pause button geometry and an intentional player grid so Play / Starting… / Pause and status-label changes do not move adjacent controls.
+
+### Improved
+
+- Player surface converted from unconstrained flex-wrap to an intentional responsive grid (transport left, version selector right, timeline full-width, bottom controls in stable columns).
+- Volume, crossfade and timeline sliders share one visual language with visible progress, focus rings and theme-appropriate rail/thumb/fill.
+- Crossfade slider gained min/default/max scale markers (80 / 180 / 600 ms) and an `aria-valuetext` in milliseconds.
+- Dropzones reveal with a short stagger and show hover, focus, press and drag-over states.
+- Waveform peaks reveal smoothly once real data is ready; the playhead advances during playback without redrawing every peak.
+
+### Fixed
+
+- Play button and surrounding controls no longer jitter or shift when the transport label changes between Play / Starting… / Pause / switching.
+- Status text no longer pushes sliders around; the status area has a reserved height.
+
+### Verified
+
+- 149 Vitest unit/component tests pass (116 existing + 33 new waveform peak/budget/service and waveform-UI tests).
+- 24 Chromium Playwright specs pass; 24 Firefox Playwright specs pass.
+- WebKit 27.2 on Windows: 4 specs pass, 20 audio-dependent specs skip with an explicit message.
+- Formatting, lint, strict type-check, production build, Workers-runtime preview and preview smoke check pass.
+- The development diagnostic hook remains absent from the production build; no audio, peaks or metadata leave the browser.
+
+### Known limitations
+
+- Waveform analysis supports common PCM WAV directly in the worker; other formats depend on the browser's decoder and may fall back to a plain timeline while playback still works.
+- No human listening pass has been performed on the v0.3.0 build; the recorded listening session is from v0.1.0. MP3, FLAC, AAC and M4A decode/listening behaviour remains manually unverified; automated fixtures are PCM WAV.
+- Branded Chrome, branded Safari, Chrome Android and Safari iOS remain manually unverified.
+- The crossfade setting is session-only and is not persisted.
+- No accounts, cloud storage, sharing, comments, persistent library or server processing; these remain deliberate exclusions.
+
 ## [0.2.0] — 2026-11-09
 
 ### Added

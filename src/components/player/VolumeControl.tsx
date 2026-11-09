@@ -1,3 +1,4 @@
+import type { CSSProperties } from 'react';
 import { Volume2, VolumeX } from 'lucide-react';
 import { usePlayer } from '../../hooks/usePlayer';
 
@@ -22,7 +23,7 @@ export function VolumeControl() {
       </button>
 
       <input
-        className="volume__range"
+        className="range-control range-control--volume volume__range"
         type="range"
         min={0}
         max={1}
@@ -31,6 +32,7 @@ export function VolumeControl() {
         aria-label="Master volume"
         aria-valuetext={snapshot.muted ? 'Muted' : `${percent}%`}
         onChange={(event) => engine.setVolume(Number(event.target.value))}
+        style={{ '--range-progress': `${percent}%` } as CSSProperties}
       />
 
       <span className="volume__value" aria-hidden="true">

@@ -65,6 +65,54 @@ function describeStatus(snapshot: ABPlayerSnapshot): string {
   return 'Add both recordings to enable the player.';
 }
 
+function transportKicker(snapshot: ABPlayerSnapshot): string {
+  const bothReady = snapshot.original.ready && snapshot.edited.ready;
+
+  if (snapshot.status === 'starting') {
+    return 'Starting';
+  }
+
+  if (snapshot.status === 'switching') {
+    return 'Switching';
+  }
+
+  if (snapshot.status === 'playing') {
+    return 'Now playing';
+  }
+
+  if (snapshot.status === 'interrupted') {
+    return 'Interrupted';
+  }
+
+  if (bothReady) {
+    return 'Ready';
+  }
+
+  return 'Waiting for audio';
+}
+
+function transportTitle(snapshot: ABPlayerSnapshot): string {
+  const bothReady = snapshot.original.ready && snapshot.edited.ready;
+
+  if (!bothReady) {
+    return 'No comparison yet';
+  }
+
+  if (snapshot.status === 'switching' && snapshot.switchingTo) {
+    return `Switching to ${versionLabel(snapshot.switchingTo)}`;
+  }
+
+  if (snapshot.status === 'starting') {
+    return 'Starting audio';
+  }
+
+  if (snapshot.status === 'playing') {
+    return versionLabel(snapshot.audibleVersion);
+  }
+
+  return versionLabel(snapshot.activeVersion);
+}
+
 export function PlayerSurface() {
   const { engine, snapshot } = usePlayer();
   const bothReady = snapshot.original.ready && snapshot.edited.ready;
@@ -72,32 +120,12 @@ export function PlayerSurface() {
   const isPlaying = snapshot.status === 'playing' || snapshot.status === 'switching';
   const canPause = isStarting || isPlaying;
   const audibleLabel = versionLabel(snapshot.audibleVersion);
-
-  const transportKicker = isStarting
-    ? 'Starting'
-    : snapshot.status === 'switching'
-      ? 'Switching'
-      : isPlaying
-        ? 'Now playing'
-        : snapshot.status === 'interrupted'
-          ? 'Interrupted'
-          : bothReady
-            ? 'Ready'
-            : 'Waiting for audio';
-
-  const transportTitle = !bothReady
-    ? 'No comparison yet'
-    : snapshot.status === 'switching' && snapshot.switchingTo
-      ? `Switching to ${versionLabel(snapshot.switchingTo)}`
-      : isStarting
-        ? 'Starting audio'
-        : isPlaying
-          ? audibleLabel
-          : versionLabel(snapshot.activeVersion);
+  const kicker = transportKicker(snapshot);
+  const title = transportTitle(snapshot);
 
   return (
     <section className="player" aria-label="Comparison player" data-status={snapshot.status}>
-      <div className="player__top">
+      <div className="player__header">
         <div className="transport">
           <button
             type="button"
@@ -114,11 +142,22 @@ export function PlayerSurface() {
             }}
           >
             <span className="play-button__icon" aria-hidden="true">
-              {canPause ? (
-                <Pause size={20} strokeWidth={2} fill="currentColor" />
-              ) : (
-                <Play size={20} strokeWidth={2} fill="currentColor" />
-              )}
+              <span className="play-button__icons">
+                <span
+                  className="play-button__icon-motion"
+                  data-active={!canPause}
+                  aria-hidden="true"
+                >
+                  <Play size={20} strokeWidth={2} fill="currentColor" />
+                </span>
+                <span
+                  className="play-button__icon-motion"
+                  data-active={canPause}
+                  aria-hidden="true"
+                >
+                  <Pause size={20} strokeWidth={2} fill="currentColor" />
+                </span>
+              </span>
             </span>
             <span className="play-button__label">
               {isStarting ? 'Starting…' : canPause ? 'Pause' : 'Play'}
@@ -126,8 +165,8 @@ export function PlayerSurface() {
           </button>
 
           <div className="transport__copy">
-            <p className="transport__kicker">{transportKicker}</p>
-            <p className="transport__title">{transportTitle}</p>
+            <p className="transport__kicker">{kicker}</p>
+            <p className="transport__title">{title}</p>
           </div>
         </div>
 
