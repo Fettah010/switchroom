@@ -62,6 +62,20 @@ Unit/component suite: **116 tests passed** (Vitest, 6 files).
 
 The v0.2.0 production build was deployed to <https://switchroom.ftallfettah.workers.dev> and passed the automated preview/public smoke check on 2026-11-09. That check verifies the production title, privacy statement, absence of the development hook, local WAV loading, duration, playback progress, A/B switching and pause state. It does not replace a human listening pass.
 
+### Async cases covered deterministically instead of in a real browser
+
+Five plan scenarios depend on holding a browser promise or timer open at an exact moment. They are covered by deterministic Vitest engine/component tests rather than a Playwright spec, because the fake host can pause and resume those operations precisely:
+
+| Scenario                                        | Deterministic coverage                                                            |
+| ----------------------------------------------- | --------------------------------------------------------------------------------- |
+| E2E-13 Pause during startup                     | “pause during startup cancels the pending start”                                  |
+| E2E-14 Replace a file during startup            | “replacing a file during startup supersedes the old start”                        |
+| E2E-15 Remove a file during startup             | “removing a file during startup leaves the player incomplete”                     |
+| E2E-20 Metadata duration becomes available late | “waits for a late duration instead of failing the first metadata event”           |
+| E2E-21 Metadata timeout                         | “fails a never-loading file after the metadata timeout” and the slot timeout test |
+
+The remaining v0.2 scenarios run against real media elements and Web Audio in Chromium and Firefox.
+
 ## Format support
 
 Switchroom accepts `.wav`, `.mp3`, `.flac`, `.aac` and `.m4a` for local playback. Acceptance is not a decode guarantee. v0.2 also tolerates a blank or generic MIME type when the extension is supported, while still rejecting unsupported extensions.
