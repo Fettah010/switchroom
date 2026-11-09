@@ -25,16 +25,20 @@ All notable changes to Switchroom are recorded here. The format follows [Keep a 
 
 ### Fixed
 
+- Waveform analysis no longer stalls in "Preparing waveform…": the worker's reply `MessagePort` is now explicitly started, so results are delivered.
 - Play button and surrounding controls no longer jitter or shift when the transport label changes between Play / Starting… / Pause / switching.
 - Status text no longer pushes sliders around; the status area has a reserved height.
+- Timeline, volume and crossfade fills now terminate exactly at the thumb centre at 0 %, 50 % and 100 %, verified by DOM measurement in Chromium and Firefox.
+- Entrance reveals now trigger when their section enters the viewport instead of staying hidden.
 
 ### Verified
 
-- 149 Vitest unit/component tests pass (116 existing + 33 new waveform peak/budget/service and waveform-UI tests).
-- 24 Chromium Playwright specs pass; 24 Firefox Playwright specs pass.
-- WebKit 27.2 on Windows: 4 specs pass, 20 audio-dependent specs skip with an explicit message.
+- 179 Vitest unit/component tests pass across 14 files, including WAV parser, worker client, resource budget, service lifecycle, shared-fraction and waveform-UI coverage.
+- 34 Chromium Playwright specs pass; 34 Firefox Playwright specs pass.
+- WebKit 27.2 on Windows: 5 specs pass, 29 audio-dependent specs skip with an explicit message.
 - Formatting, lint, strict type-check, production build, Workers-runtime preview and preview smoke check pass.
 - The development diagnostic hook remains absent from the production build; no audio, peaks or metadata leave the browser.
+- Public deployment at <https://switchroom.ftallfettah.workers.dev> (version `eaaca848-40a7-4e07-9ee9-90fabb62b7b9`), smoke-tested against that URL on 2026-11-09, including both waveform lanes painting real ink and the footer reporting `v0.3.0`.
 
 ### Known limitations
 
@@ -119,5 +123,6 @@ All notable changes to Switchroom are recorded here. The format follows [Keep a 
 - Playwright WebKit on Windows cannot decode local audio in the test environment, so its audio flows are skipped.
 - No waveforms, persistent library, sharing, accounts or server processing; these are deliberate v0.1 exclusions.
 
+[0.3.0]: https://github.com/Fettah010/switchroom/releases/tag/v0.3.0
 [0.2.0]: https://github.com/Fettah010/switchroom/releases/tag/v0.2.0
 [0.1.0]: https://github.com/Fettah010/switchroom/releases/tag/v0.1.0

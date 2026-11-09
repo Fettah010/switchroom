@@ -15,6 +15,11 @@ interface RevealProps {
 /**
  * A single-element reveal. Respects reduced motion by appearing immediately
  * without any travel animation.
+ *
+ * `viewport` mode uses `whileInView` (not just a `viewport` prop) so lower-page
+ * sections animate when they are actually seen. Environments without
+ * IntersectionObserver fall back to a mount animation rather than leaving
+ * content permanently hidden.
  */
 export function Reveal({
   children,
@@ -25,6 +30,8 @@ export function Reveal({
   ...props
 }: RevealProps) {
   const reduceMotion = useReducedMotion();
+  const canObserve = typeof IntersectionObserver !== 'undefined';
+  const useViewport = viewport && canObserve && !reduceMotion;
 
   const variants = reduceMotion
     ? undefined
@@ -41,18 +48,26 @@ export function Reveal({
         },
       };
 
+  const animationProps = reduceMotion
+    ? { initial: false as const, animate: { opacity: 1, y: 0 } }
+    : useViewport
+      ? {
+          initial: 'hidden' as const,
+          whileInView: 'visible' as const,
+          viewport: { once: true, margin: '-12%' },
+        }
+      : { initial: 'hidden' as const, animate: 'visible' as const };
+
   return (
     <motion.div
       className={className}
       {...props}
-      initial={reduceMotion ? false : 'hidden'}
-      animate={reduceMotion ? 'visible' : 'visible'}
       variants={variants}
       transition={{
         duration: reduceMotion ? 0 : duration / 1000,
         ease: [0.16, 1, 0.3, 1] as const,
       }}
-      viewport={viewport ? { once: true, margin: '-12%' } : undefined}
+      {...animationProps}
     >
       {children}
     </motion.div>

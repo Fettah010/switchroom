@@ -64,6 +64,37 @@ try {
 
   assert.equal(await page.locator('.slot__status--ready').count(), 2);
   assert.equal(await page.locator('.timeline__times .time--total').textContent(), '0:04');
+  assert.equal(await page.locator('.site-footer__version').textContent(), 'v0.3.0');
+
+  // Both real waveform lanes must finish analysis and paint in the production
+  // worker bundle, not just in the dev server.
+  await page.waitForFunction(
+    () => document.querySelectorAll('.waveform__canvas[data-ready="true"]').length === 2,
+    undefined,
+    { timeout: 10_000 },
+  );
+  assert.equal(await page.locator('.waveform__canvas').count(), 2);
+  assert.equal(await page.locator('.waveform__status').count(), 0);
+
+  // Real peaks, not just the faint centreline: the generated fixtures are
+  // constant-amplitude tones, so each lane should be substantially inked.
+  const laneCoverage = await page.evaluate(() =>
+    Array.from(document.querySelectorAll('.waveform__canvas')).map((canvas) => {
+      const context = canvas.getContext('2d');
+      const pixels = context.getImageData(0, 0, canvas.width, canvas.height).data;
+      let opaque = 0;
+      for (let index = 3; index < pixels.length; index += 4) {
+        if (pixels[index] > 0) {
+          opaque += 1;
+        }
+      }
+      return opaque / (canvas.width * canvas.height);
+    }),
+  );
+  assert.equal(laneCoverage.length, 2);
+  for (const coverage of laneCoverage) {
+    assert.ok(coverage > 0.2, `Waveform lane coverage was only ${coverage}`);
+  }
 
   await page.getByRole('button', { name: 'Play', exact: true }).click();
   await page.waitForTimeout(1_000);

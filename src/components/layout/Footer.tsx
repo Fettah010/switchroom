@@ -7,7 +7,7 @@ export function Footer() {
     <footer className="site-footer">
       <div className="site-footer__brand">
         <span className="site-footer__name">Switchroom</span>
-        <span className="site-footer__version">v0.2.0</span>
+        <span className="site-footer__version">v{__APP_VERSION__}</span>
       </div>
 
       <p className="site-footer__note">Built for listening, not uploading.</p>

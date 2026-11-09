@@ -41,6 +41,41 @@ describe('waveformBudget', () => {
     expect(budget.reason).toBe('too-large');
   });
 
+  it('uses a tighter source ceiling for compressed formats with unknown duration', () => {
+    const budget = selectBudget(
+      DEFAULT_BUDGET.maxCompressedSourceBytes + 1,
+      null,
+      null,
+      null,
+      'mp3',
+    );
+
+    expect(budget.reason).toBe('too-large');
+    expect(budget.maxCompressedSourceBytes).toBeLessThan(DEFAULT_BUDGET.maxSourceBytes);
+  });
+
+  it('accepts a compressed file under the compressed ceiling', () => {
+    const budget = selectBudget(8 * 1024 * 1024, null, null, null, 'flac');
+
+    expect(budget.reason).toBe('unknown-duration');
+  });
+
+  it('falls back when decoded duration exceeds the duration ceiling', () => {
+    // Mono 8 kHz stays inside the decoded-byte ceiling but runs far past the
+    // 30-minute duration limit.
+    const budget = selectBudget(1024, 31 * 60, 8000, 1, 'wav');
+
+    expect(budget.reason).toBe('too-large');
+  });
+
+  it('budgets for the temporary channel copies sent to the worker', () => {
+    // 121 MB decoded PCM is under the 240 MB ceiling on its own, but the
+    // analysis copy pushes the real footprint over it.
+    const budget = selectBudget(1024, (121 * 1024 * 1024) / (44100 * 2 * 4), 44100, 2, 'wav');
+
+    expect(budget.reason).toBe('too-large');
+  });
+
   it('triggers low-memory budget when deviceMemory is <= 4 GB', () => {
     const original = (navigator as { deviceMemory?: number }).deviceMemory;
     Object.defineProperty(navigator, 'deviceMemory', {

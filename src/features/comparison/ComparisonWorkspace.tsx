@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { motion } from 'motion/react';
 import { LockKeyhole } from 'lucide-react';
 import { AudioFileSlot } from '../../components/audio-file-slot/AudioFileSlot';
@@ -18,12 +18,23 @@ const slotContainerVariants = {
 export function ComparisonWorkspace() {
   const [originalService] = useState(() => new WaveformServiceImpl({ version: 'original' }));
   const [editedService] = useState(() => new WaveformServiceImpl({ version: 'edited' }));
+  const disposeTimer = useRef<number | null>(null);
 
-  // Dispose waveform services when the workspace unmounts.
+  // Dispose waveform services when the workspace unmounts. StrictMode mounts,
+  // unmounts and remounts in development; deferring disposal lets the remount
+  // reuse the same instances instead of leaving them permanently disposed.
   useEffect(() => {
+    if (disposeTimer.current !== null) {
+      window.clearTimeout(disposeTimer.current);
+      disposeTimer.current = null;
+    }
+
     return () => {
-      originalService.dispose();
-      editedService.dispose();
+      disposeTimer.current = window.setTimeout(() => {
+        disposeTimer.current = null;
+        originalService.dispose();
+        editedService.dispose();
+      }, 0);
     };
   }, [originalService, editedService]);
 

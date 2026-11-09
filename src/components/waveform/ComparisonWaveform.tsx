@@ -1,9 +1,15 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
+import { AudioLines } from 'lucide-react';
 import { usePlayer } from '../../hooks/usePlayer';
 import { WaveformCanvas } from './WaveformCanvas';
-import type { WaveformService } from '../../waveform/waveformTypes';
+import { sharedFraction } from './sharedFraction';
+import type { WaveformService, WaveformSlotView } from '../../waveform/waveformTypes';
 
-const ROW_HEIGHT = 48;
+const ROW_HEIGHT = 56;
+const PREPARING_MESSAGE = 'Preparing waveform…';
+const FALLBACK_MESSAGE =
+  'Waveform preview skipped for one or both files. Playback and seeking still work.';
+const UNAVAILABLE_MESSAGE = 'Waveform preview unavailable. Playback and seeking still work.';
 
 /**
  * The shared comparison waveform: Original and Edited rows on one time axis,
@@ -11,7 +17,9 @@ const ROW_HEIGHT = 48;
  * seek operation.
  *
  * The playhead is a DOM overlay moved imperatively from the engine's time
- * subscription, so playback does not cause React to render at 60 Hz.
+ * subscription, so playback does not cause React to render at 60 Hz. The
+ * overlay is confined to the plot column, so it cannot drift into the A/B
+ * label gutter.
  */
 
 interface ComparisonWaveformProps {
@@ -19,69 +27,104 @@ interface ComparisonWaveformProps {
   edited: WaveformService;
 }
 
+function statusMessage(
+  original: WaveformSlotView,
+  edited: WaveformSlotView,
+  missing: 'Original' | 'Edited' | null,
+): string | null {
+  if (original.state === 'preparing' || edited.state === 'preparing') {
+    return PREPARING_MESSAGE;
+  }
+
+  if (original.state === 'unavailable') {
+    return original.message ?? UNAVAILABLE_MESSAGE;
+  }
+
+  if (edited.state === 'unavailable') {
+    return edited.message ?? UNAVAILABLE_MESSAGE;
+  }
+
+  if (original.state === 'fallback' || edited.state === 'fallback') {
+    return original.message ?? edited.message ?? FALLBACK_MESSAGE;
+  }
+
+  if (missing) {
+    return `Add the ${missing} recording to complete the comparison.`;
+  }
+
+  return null;
+}
+
 export function ComparisonWaveform({ original, edited }: ComparisonWaveformProps) {
   const { engine, snapshot } = usePlayer();
-  const containerRef = useRef<HTMLDivElement>(null);
+  const plotRef = useRef<HTMLDivElement>(null);
   const playheadRef = useRef<HTMLDivElement>(null);
   const progressRef = useRef<HTMLDivElement>(null);
   const isDraggingRef = useRef(false);
   const capturedPointerRef = useRef<number | null>(null);
-  const [canvasWidth, setCanvasWidth] = useState(0);
+  const [plotWidth, setPlotWidth] = useState(0);
+
+  const subscribeOriginal = useCallback(
+    (onChange: () => void) => original.subscribe(onChange),
+    [original],
+  );
+  const subscribeEdited = useCallback(
+    (onChange: () => void) => edited.subscribe(onChange),
+    [edited],
+  );
+  const getOriginalView = useCallback(() => original.view, [original]);
+  const getEditedView = useCallback(() => edited.view, [edited]);
+
+  const originalView = useSyncExternalStore(subscribeOriginal, getOriginalView, getOriginalView);
+  const editedView = useSyncExternalStore(subscribeEdited, getEditedView, getEditedView);
 
   const duration = snapshot.duration;
-  const enabled = snapshot.original.ready && snapshot.edited.ready;
+  const bothFiles = Boolean(originalView.fileName && editedView.fileName);
+  const missing = !originalView.fileName
+    ? ('Original' as const)
+    : !editedView.fileName
+      ? ('Edited' as const)
+      : null;
+  const enabled =
+    snapshot.original.ready && snapshot.edited.ready && Number.isFinite(duration) && duration > 0;
 
-  const originalView = original.view;
-  const editedView = edited.view;
+  const originalPeaks = originalView.state === 'ready' ? (originalView.peaks?.peaks ?? null) : null;
+  const editedPeaks = editedView.state === 'ready' ? (editedView.peaks?.peaks ?? null) : null;
+  const message = statusMessage(originalView, editedView, missing);
+  const originalFraction = sharedFraction(originalView, duration);
+  const editedFraction = sharedFraction(editedView, duration);
 
-  const originalPeaks = originalView.state === 'ready' ? originalView.peaks : null;
-  const editedPeaks = editedView.state === 'ready' ? editedView.peaks : null;
-
-  // Measure the container so peak requests match the display resolution.
+  // Measure the plot column so the playhead can move in pixels without
+  // re-rendering React on every animation frame.
   useEffect(() => {
-    const container = containerRef.current;
-    if (!container) {
+    const plot = plotRef.current;
+    if (!plot) {
       return undefined;
     }
 
-    // ResizeObserver is unavailable in some environments (jsdom, older
-    // browsers). Without it, the bucket count uses the initial width.
     if (typeof ResizeObserver === 'undefined') {
-      setCanvasWidth(container.getBoundingClientRect().width);
+      setPlotWidth(plot.getBoundingClientRect().width);
       return undefined;
     }
 
     const observer = new ResizeObserver((entries) => {
       for (const entry of entries) {
-        setCanvasWidth(entry.contentRect.width);
+        setPlotWidth(entry.contentRect.width);
       }
     });
-    observer.observe(container);
+    observer.observe(plot);
 
-    // Seed an initial measurement.
-    setCanvasWidth(container.getBoundingClientRect().width);
+    setPlotWidth(plot.getBoundingClientRect().width);
 
     return () => observer.disconnect();
-  }, []);
-
-  const bucketCount =
-    canvasWidth > 0
-      ? original.requestedBucketCount(canvasWidth, window.devicePixelRatio ?? 1)
-      : original.requestedBucketCount(400, 1);
-
-  // Time-to-percent mapping against the shared/common duration.
-  const timeToPercent = useCallback(
-    (time: number): number => {
-      if (!enabled || !Number.isFinite(duration) || duration <= 0) {
-        return 0;
-      }
-      return Math.min(Math.max(time / duration, 0), 1);
-    },
-    [enabled, duration],
-  );
+  }, [bothFiles]);
 
   // Imperative playhead update: moves the overlay without a React render.
   useEffect(() => {
+    if (!enabled) {
+      return undefined;
+    }
+
     const playhead = playheadRef.current;
     const progress = progressRef.current;
     if (!playhead || !progress) {
@@ -89,30 +132,30 @@ export function ComparisonWaveform({ original, edited }: ComparisonWaveformProps
     }
 
     const publish = (time: number): void => {
-      const pct = timeToPercent(time);
-      playhead.style.transform = `translateX(${pct * 100}%)`;
-      progress.style.transform = `scalex(${pct})`;
+      const fraction = Math.min(Math.max(time / duration, 0), 1);
+      playhead.style.transform = `translateX(${fraction * plotWidth}px)`;
+      progress.style.transform = `scaleX(${fraction})`;
     };
 
     publish(snapshot.currentTime);
 
-    const unsubscribe = engine.subscribeToTime(publish);
-    return unsubscribe;
-  }, [engine, timeToPercent, snapshot.currentTime]);
+    return engine.subscribeToTime(publish);
+  }, [engine, enabled, duration, plotWidth, snapshot.currentTime]);
 
   const seekFromPoint = useCallback(
     (clientX: number): void => {
-      const container = containerRef.current;
-      if (!container || !enabled || !Number.isFinite(duration) || duration <= 0) {
+      const plot = plotRef.current;
+      if (!plot || !enabled) {
         return;
       }
 
-      const rect = container.getBoundingClientRect();
-      const fraction = (clientX - rect.left) / rect.width;
-      const clamped = Math.min(Math.max(fraction, 0), 1);
-      const targetTime = clamped * duration;
+      const rect = plot.getBoundingClientRect();
+      if (rect.width <= 0) {
+        return;
+      }
 
-      engine.seek(targetTime);
+      const fraction = Math.min(Math.max((clientX - rect.left) / rect.width, 0), 1);
+      engine.seek(fraction * duration);
     },
     [engine, enabled, duration],
   );
@@ -122,10 +165,11 @@ export function ComparisonWaveform({ original, edited }: ComparisonWaveformProps
       if (!enabled) {
         return;
       }
+
+      event.preventDefault();
       isDraggingRef.current = true;
       capturedPointerRef.current = event.pointerId;
-      const element = event.currentTarget;
-      element.setPointerCapture(event.pointerId);
+      event.currentTarget.setPointerCapture(event.pointerId);
       seekFromPoint(event.clientX);
     },
     [enabled, seekFromPoint],
@@ -146,92 +190,78 @@ export function ComparisonWaveform({ original, edited }: ComparisonWaveformProps
     [enabled, seekFromPoint],
   );
 
-  const handlePointerUp = useCallback((event: React.PointerEvent): void => {
+  const endDrag = useCallback((event: React.PointerEvent): void => {
     if (capturedPointerRef.current !== null && capturedPointerRef.current === event.pointerId) {
       isDraggingRef.current = false;
       capturedPointerRef.current = null;
-      const container = containerRef.current;
-      if (container) {
-        container.releasePointerCapture(event.pointerId);
+
+      if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+        event.currentTarget.releasePointerCapture(event.pointerId);
       }
     }
   }, []);
 
-  const handlePointerLeave = useCallback((): void => {
-    isDraggingRef.current = false;
-    capturedPointerRef.current = null;
-  }, []);
-
   return (
     <div
-      ref={containerRef}
-      className="waveform"
+      className={`waveform${bothFiles ? '' : ' waveform--incomplete'}`}
       role="region"
       aria-label="Original and Edited waveform comparison"
-      onPointerDown={handlePointerDown}
-      onPointerMove={handlePointerMove}
-      onPointerUp={handlePointerUp}
-      onPointerLeave={handlePointerLeave}
-      onTouchStart={(event) => {
-        if (!enabled) {
-          return;
-        }
-        const touch = event.touches[0];
-        if (touch) {
-          seekFromPoint(touch.clientX);
-        }
-      }}
+      data-interactive={enabled ? 'true' : 'false'}
     >
-      <div className="waveform__track" style={{ width: '100%' }}>
-        {/* Original row (A) */}
-        <div className="waveform__row">
-          <span className="waveform__label" aria-hidden="true">
-            A
-          </span>
-          <WaveformCanvas
-            peaks={originalPeaks?.peaks ?? null}
-            width={bucketCount}
-            height={ROW_HEIGHT}
-            color="var(--waveform-fill-original)"
-            active={snapshot.audibleVersion === 'original'}
-          />
+      {originalView.fileName || editedView.fileName ? (
+        <div className="waveform__body">
+          <div className="waveform__labels" aria-hidden="true">
+            <span className="waveform__label">A</span>
+            <span className="waveform__label">B</span>
+          </div>
+
+          <div
+            className="waveform__plot"
+            ref={plotRef}
+            data-interactive={enabled ? 'true' : 'false'}
+            onPointerDown={handlePointerDown}
+            onPointerMove={handlePointerMove}
+            onPointerUp={endDrag}
+            onPointerCancel={endDrag}
+            onLostPointerCapture={endDrag}
+          >
+            <div className="waveform__lanes">
+              <WaveformCanvas
+                peaks={originalPeaks}
+                height={ROW_HEIGHT}
+                colorVariable="--waveform-fill-original"
+                active={snapshot.audibleVersion === 'original'}
+                visibleFraction={originalFraction}
+              />
+              <WaveformCanvas
+                peaks={editedPeaks}
+                height={ROW_HEIGHT}
+                colorVariable="--waveform-fill-edited"
+                active={snapshot.audibleVersion === 'edited'}
+                visibleFraction={editedFraction}
+              />
+            </div>
+
+            {enabled && (
+              <div className="waveform__overlay" aria-hidden="true">
+                <div ref={progressRef} className="waveform__progress" />
+                <div ref={playheadRef} className="waveform__playhead" />
+              </div>
+            )}
+          </div>
         </div>
-
-        {/* Edited row (B) */}
-        <div className="waveform__row">
-          <span className="waveform__label" aria-hidden="true">
-            B
-          </span>
-          <WaveformCanvas
-            peaks={editedPeaks?.peaks ?? null}
-            width={bucketCount}
-            height={ROW_HEIGHT}
-            color="var(--waveform-fill-edited)"
-            active={snapshot.audibleVersion === 'edited'}
-          />
+      ) : (
+        <div className="waveform__empty">
+          <AudioLines size={20} strokeWidth={1.5} aria-hidden="true" />
+          <p>Load both recordings to see their waveforms on one shared timeline.</p>
         </div>
-      </div>
+      )}
 
-      {/* Progress fill (elapsed portion) and playhead overlay, absolutely
-          positioned over the track so they scale with the timeline width. */}
-      <div className="waveform__overlay" style={{ width: '100%', height: ROW_HEIGHT * 2 + 24 }}>
-        <div ref={progressRef} className="waveform__progress" />
-        <div ref={playheadRef} className="waveform__playhead" />
-      </div>
-
-      {originalView.state === 'preparing' || editedView.state === 'preparing' ? (
+      {message && (
         <p className="waveform__status" role="status">
-          Preparing waveform…
+          {message}
         </p>
-      ) : originalView.state === 'fallback' || editedView.state === 'fallback' ? (
-        <p className="waveform__status" role="status">
-          Waveform preview skipped for one or both files. Playback and seeking still work.
-        </p>
-      ) : originalView.state === 'unavailable' || editedView.state === 'unavailable' ? (
-        <p className="waveform__status" role="status">
-          {originalView.message || editedView.message || 'Waveform preview unavailable.'}
-        </p>
-      ) : null}
+      )}
     </div>
   );
 }

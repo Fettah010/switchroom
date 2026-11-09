@@ -21,11 +21,11 @@ Playwright's Chromium and WebKit are test builds, not branded Chrome/Edge or Saf
 
 ## Automated end-to-end results (v0.3.0)
 
-`npm run test:e2e` (Chromium gate): **24 passed**.
+`npm run test:e2e` (Chromium gate): **34 passed**.
 
-`npx playwright test --project=firefox --workers=4`: **24 passed**.
+`npx playwright test --project=firefox --workers=4`: **34 passed**.
 
-`npx playwright test --project=webkit --workers=3`: **4 passed, 20 skipped**.
+`npx playwright test --project=webkit --workers=3`: **5 passed, 29 skipped**.
 
 | Area                                                              | Chromium | Firefox | WebKit      |
 | ----------------------------------------------------------------- | -------- | ------- | ----------- |
@@ -60,18 +60,21 @@ Playwright's Chromium and WebKit are test builds, not branded Chrome/Edge or Saf
 
 ### v0.3 additions to the matrix
 
-| Area                                               | Chromium | Firefox |
-| -------------------------------------------------- | -------- | ------- |
-| Waveform rendering (Canvas, both rows)             | Pass     | Pass    |
-| Waveform click-to-seek both decks                  | Pass     | Pass    |
-| Waveform fallback keeps audio usable               | Pass     | Pass    |
-| Entrance/reveal motion + reduced-motion visibility | Pass     | Pass    |
-| Custom range sliders (timeline/volume/crossfade)   | Pass     | Pass    |
-| Play/Pause geometry stability across states        | Pass     | Pass    |
+| Area                                                    | Chromium | Firefox |
+| ------------------------------------------------------- | -------- | ------- |
+| Waveform A/B labels and two canvas rows                 | Pass     | Pass    |
+| Real non-empty pixels in both waveform canvases         | Pass     | Pass    |
+| Shared-axis click-to-seek at 50 %, 25 % and 70 %        | Pass     | Pass    |
+| Mismatch clipped to the shared common duration          | Pass     | Pass    |
+| Waveform fallback keeps audio usable                    | Pass     | Pass    |
+| Playhead and timeline slider stay in sync               | Pass     | Pass    |
+| Entrance/reveal motion + reduced-motion visibility      | Pass     | Pass    |
+| Slider fill terminates at the thumb centre (0/50/100 %) | Pass     | Pass    |
+| Play/Pause geometry stability across states             | Pass     | Pass    |
 
-Unit/component suite: **149 tests passed** (Vitest, 10 files).
+Unit/component suite: **179 tests passed** (Vitest, 14 files).
 
-The v0.3.0 production build was deployed to <https://switchroom.ftallfettah.workers.dev> and passed the automated preview/public smoke check. That check verifies the production title, privacy statement, absence of the development hook, local WAV loading, duration, playback progress, A/B switching and pause state. It does not replace a human listening pass.
+The v0.3.0 production build passed the automated preview smoke check and then the same check against the public deployment at <https://switchroom.ftallfettah.workers.dev> (version `eaaca848-40a7-4e07-9ee9-90fabb62b7b9`). That check verifies the production title, privacy statement, absence of the development hook, footer version, local WAV loading, duration, both waveform lanes reaching ready and painting real ink, playback progress, A/B switching and pause state. It does not replace a human listening pass.
 
 ### Async cases covered deterministically instead of in a real browser
 
@@ -89,7 +92,7 @@ The remaining v0.2 scenarios run against real media elements and Web Audio in Ch
 
 ## Format support
 
-Switchroom accepts `.wav`, `.mp3`, `.flac`, `.aac` and `.m4a` for local playback. Acceptance is not a decode guarantee. v0.2 also tolerates a blank or generic MIME type when the extension is supported, while still rejecting unsupported extensions.
+Switchroom accepts `.wav`, `.mp3`, `.flac`, `.aac` and `.m4a` for local playback. Acceptance is not a decode guarantee. v0.3 also tolerates a blank or generic MIME type when the extension is supported, while still rejecting unsupported extensions. Waveform analysis parses PCM WAV directly and uses the browser decoder for compressed formats.
 
 | Format    | Automated verification                                            | Manual verification            |
 | --------- | ----------------------------------------------------------------- | ------------------------------ |
@@ -103,29 +106,30 @@ The automated suite deliberately generates WAV because it is dependency-free and
 
 ## Manual browser checks
 
-| Browser / device                   | Status     | Notes                                                                             |
-| ---------------------------------- | ---------- | --------------------------------------------------------------------------------- |
-| Chromium 158 (Playwright), Windows | Automated  | Full 24-spec workflow, WAV, Web Audio gain automation, keyboard, themes, layouts. |
-| Firefox 159 (Playwright), Windows  | Automated  | Full 24-spec workflow and WAV playback.                                           |
-| WebKit 27.2 (Playwright), Windows  | Partial    | 4 UI/validation/theme/layout specs pass; 20 audio-dependent specs skip.           |
-| Google Chrome desktop (current)    | Not tested | Needs a manual pass.                                                              |
-| Microsoft Edge desktop (current)   | Manual     | v0.1.0 listening pass only, Windows 11, WAV; no audible issues reported then.     |
-| Firefox desktop (branded, current) | Not tested | Engine build above is not the branded UI.                                         |
-| Safari macOS (current)             | Not tested | AudioContext gesture activation and codec behaviour need a real check.            |
-| Safari iOS (current)               | Not tested | Touch file selection and audio activation need a real device.                     |
-| Chrome Android (current)           | Not tested | Touch and interruption recovery need a real device.                               |
+| Browser / device                   | Status     | Notes                                                                                        |
+| ---------------------------------- | ---------- | -------------------------------------------------------------------------------------------- |
+| Chromium 158 (Playwright), Windows | Automated  | Full 34-spec workflow, WAV, Web Audio gain automation, waveforms, keyboard, themes, layouts. |
+| Firefox 159 (Playwright), Windows  | Automated  | Full 34-spec workflow, WAV playback and waveform rendering.                                  |
+| WebKit 27.2 (Playwright), Windows  | Partial    | 5 UI/validation/theme/layout specs pass; 29 audio-dependent specs skip.                      |
+| Google Chrome desktop (current)    | Not tested | Needs a manual pass.                                                                         |
+| Microsoft Edge desktop (current)   | Manual     | v0.1.0 listening pass only, Windows 11, WAV; no audible issues reported then.                |
+| Firefox desktop (branded, current) | Not tested | Engine build above is not the branded UI.                                                    |
+| Safari macOS (current)             | Not tested | AudioContext gesture activation and codec behaviour need a real check.                       |
+| Safari iOS (current)               | Not tested | Touch file selection and audio activation need a real device.                                |
+| Chrome Android (current)           | Not tested | Touch and interruption recovery need a real device.                                          |
 
 ## Manual listening record
 
-**Status: no v0.2.0 listening pass has been performed.** The only recorded human listening session is from v0.1.0, before the crossfade duration control and interruption-recovery changes existed. Automated tests prove that gain automation is scheduled, that sampled gains pass through intermediate values, that the playhead is preserved across seek/switch/interruption, and that the crossfade duration affects the scheduled ramp. They cannot prove that a human hears a pleasant, click-free transition at every duration or on every output device.
+**Status: no v0.2.0 or v0.3.0 listening pass has been performed.** The only recorded human listening session is from v0.1.0, before the crossfade duration control, interruption recovery and waveforms existed. Automated tests prove that gain automation is scheduled, that sampled gains pass through intermediate values, that the playhead is preserved across seek/switch/interruption, and that the crossfade duration affects the scheduled ramp. They cannot prove that a human hears a pleasant, click-free transition at every duration or on every output device.
 
 ### v0.1.0 record — completed 2026-11-08
 
 Microsoft Edge (default browser) on Windows 11 Pro, public deployment at <https://switchroom.ftallfettah.workers.dev>, WAV files. The tester reported no audible clicks, pops, gaps, loudness jumps or dropouts across repeated switches, including pause and resume during a crossfade. The output device was not recorded and the pair's relative levels were not independently measured; the result is a subjective listening check, not a laboratory measurement.
 
-### Outstanding v0.2.0 checklist
+### Outstanding v0.3.0 checklist
 
 - [ ] Listen to the 80 ms, 180 ms and 600 ms settings in a branded desktop browser.
+- [ ] Load a WAV pair and a compressed-format pair and confirm both waveform lanes render or fail honestly.
 - [ ] Switch repeatedly in both directions and listen for clicks, pops, gaps or loudness jumps.
 - [ ] Change the duration during a fade and confirm the current fade is not disturbed.
 - [ ] Suspend audio (for example by switching output devices or backgrounding the tab) and confirm the interruption message and explicit Play recovery.

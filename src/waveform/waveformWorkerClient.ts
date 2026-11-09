@@ -1,10 +1,15 @@
 /**
  * Main-thread client for the waveform worker.
  *
- * Owns one Dedicated Worker and one MessageChannel port per request. Requests
- * carry a `requestId` and the source slot's `fileGeneration`; stale results
- * (superseded by a replace/remove/dispose) are ignored. Peak data comes back
- * as a transferable ArrayBuffer so the encoded file buffer never lingers.
+ * Each analysis gets its own short-lived Dedicated Worker. That costs one
+ * worker start per file, but it makes cancellation real: terminating the
+ * worker stops a CPU-bound WAV scan immediately instead of waiting for a
+ * message that a busy worker cannot process. Isolating requests also means one
+ * slot cancelling or failing can never strand the other slot's analysis.
+ *
+ * Requests carry a `requestId` and the source slot's `fileGeneration`; stale
+ * results (superseded by a replace/remove/dispose) are ignored. Peak data comes
+ * back as a transferable ArrayBuffer so the encoded file buffer never lingers.
  */
 
 import type { WaveformFailureReason } from './waveformTypes';
@@ -45,37 +50,6 @@ type ClientFailure = {
   reason: WaveformFailureReason;
 };
 
-let worker: Worker | null = null;
-let workerError = false;
-
-/** Lazily create the worker. Returns null when workers are unavailable. */
-function getWorker(): Worker | null {
-  if (workerError) {
-    return null;
-  }
-
-  if (worker) {
-    return worker;
-  }
-
-  try {
-    // Vite worker module: a separate, type-checked bundle.
-    worker = new Worker(new URL('./waveformWorker.ts', import.meta.url), {
-      type: 'module',
-    });
-
-    worker.addEventListener('error', () => {
-      workerError = true;
-      worker = null;
-    });
-
-    return worker;
-  } catch {
-    workerError = true;
-    return null;
-  }
-}
-
 type CancelRequest = {
   type: 'cancel';
   requestId: string;
@@ -88,10 +62,22 @@ function nextId(): string {
   return `waveform-${++nextRequestId}`;
 }
 
+/** Create one worker for one request. Returns null when workers are unavailable. */
+function createWorker(): Worker | null {
+  try {
+    // Vite worker module: a separate, type-checked bundle.
+    return new Worker(new URL('./waveformWorker.ts', import.meta.url), {
+      type: 'module',
+    });
+  } catch {
+    return null;
+  }
+}
+
 /**
- * Send one analysis request over a fresh MessageChannel port. The caller
- * receives a promise that resolves with peaks or a failure reason, plus a
- * `cancel` function that tells the worker to drop the in-flight request.
+ * Send one analysis request to a fresh worker. The caller receives a promise
+ * that resolves with peaks or a failure reason, plus a `cancel` function that
+ * terminates the worker and settles the promise as cancelled.
  */
 function analyze(input: AnalyzeInput): {
   promise: Promise<ClientSuccess | ClientFailure>;
@@ -101,23 +87,14 @@ function analyze(input: AnalyzeInput): {
   const port = channel.port1;
   const workerPort = channel.port2;
 
-  const fullRequest = { ...input, port: workerPort } as {
-    type: 'analyze-wav' | 'extract-peaks';
-    requestId: string;
-    fileGeneration: number;
-    buffer?: ArrayBuffer;
-    bucketCount?: number;
-    channels?: Float32Array[];
-    sampleRate?: number;
-    durationSeconds?: number;
-    port: MessagePort;
-  };
+  const fullRequest = { ...input, port: workerPort } as AnalyzeInput & { port: MessagePort };
 
   let resolve!: (value: ClientSuccess | ClientFailure) => void;
   const promise = new Promise<ClientSuccess | ClientFailure>((res) => {
     resolve = res;
   });
 
+  const worker = createWorker();
   let settled = false;
 
   const finish = (value: ClientSuccess | ClientFailure): void => {
@@ -125,13 +102,48 @@ function analyze(input: AnalyzeInput): {
       return;
     }
     settled = true;
+
     try {
       port.close();
     } catch {
-      // port may already be closed
+      // Port may already be closed.
     }
+
+    if (worker) {
+      try {
+        worker.terminate();
+      } catch {
+        // Worker may already be gone.
+      }
+    }
+
     resolve(value);
   };
+
+  if (!worker) {
+    // Close the unused channel before settling.
+    try {
+      workerPort.close();
+    } catch {
+      // ignore
+    }
+    finish({
+      type: 'failure',
+      requestId: fullRequest.requestId,
+      fileGeneration: fullRequest.fileGeneration,
+      reason: 'internal',
+    });
+    return { promise, cancel: () => undefined };
+  }
+
+  worker.addEventListener('error', () => {
+    finish({
+      type: 'failure',
+      requestId: fullRequest.requestId,
+      fileGeneration: fullRequest.fileGeneration,
+      reason: 'internal',
+    });
+  });
 
   port.addEventListener('message', (event: MessageEvent<ClientSuccess | ClientFailure>) => {
     finish(event.data);
@@ -146,27 +158,25 @@ function analyze(input: AnalyzeInput): {
     });
   });
 
-  const w = getWorker();
+  // A MessagePort only starts delivering messages when it is explicitly
+  // started or its `onmessage` handler is assigned. `addEventListener` alone
+  // leaves the queue paused, which would strand every analysis result.
+  port.start();
 
-  if (!w) {
-    finish({
-      type: 'failure',
-      requestId: fullRequest.requestId,
-      fileGeneration: fullRequest.fileGeneration,
-      reason: 'internal',
-    });
-    return { promise, cancel: () => undefined };
-  }
+  const transfer: Transferable[] = [fullRequest.port];
 
-  const transfer: (ArrayBuffer | MessagePort)[] = [];
-  if (fullRequest.type === 'analyze-wav' && fullRequest.buffer) {
+  if (fullRequest.type === 'analyze-wav') {
     transfer.push(fullRequest.buffer);
+  } else {
+    // Decoded channel buffers are transferred rather than cloned, so the
+    // worker owns the only copy while it reduces them.
+    for (const channelData of fullRequest.channels) {
+      transfer.push(channelData.buffer as ArrayBuffer);
+    }
   }
-  // The reply port is transferred to the worker.
-  transfer.push(fullRequest.port);
 
   try {
-    w.postMessage(fullRequest, transfer);
+    worker.postMessage(fullRequest, transfer);
   } catch {
     finish({
       type: 'failure',
@@ -178,15 +188,22 @@ function analyze(input: AnalyzeInput): {
   }
 
   const cancel = (): void => {
+    if (settled) {
+      return;
+    }
+
+    // The worker may be mid-scan and unable to read a cancel message. Killing
+    // it is the only reliable way to stop the CPU work.
     try {
-      w.postMessage({
+      worker.postMessage({
         type: 'cancel',
         requestId: fullRequest.requestId,
         fileGeneration: fullRequest.fileGeneration,
       } as CancelRequest);
     } catch {
-      // worker may be gone
+      // Worker may already be gone.
     }
+
     finish({
       type: 'failure',
       requestId: fullRequest.requestId,

@@ -1,7 +1,7 @@
-import type { CSSProperties } from 'react';
 import { formatTime, progressPercent } from '../../audio/timeFormatting';
 import { usePlayer } from '../../hooks/usePlayer';
 import { usePlayhead } from '../../hooks/usePlayhead';
+import { RangeControl } from '../ui/RangeControl';
 
 export function Timeline() {
   const { engine, snapshot } = usePlayer();
@@ -13,18 +13,17 @@ export function Timeline() {
 
   return (
     <div className="timeline">
-      <input
-        className="range-control range-control--timeline"
-        type="range"
+      <RangeControl
+        wrapperClassName="timeline__range"
         min={0}
         max={duration || 0}
         step={0.01}
         value={enabled ? value : 0}
         disabled={!enabled}
+        progress={percent / 100}
         aria-label="Playback position"
         aria-valuetext={`${formatTime(value)} of ${formatTime(duration)}`}
         onChange={(event) => engine.seek(Number(event.target.value))}
-        style={{ '--range-progress': `${percent}%` } as CSSProperties}
       />
 
       <div className="timeline__times">

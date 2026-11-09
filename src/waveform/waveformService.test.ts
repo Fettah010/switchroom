@@ -26,8 +26,9 @@ function makeFile(name: string): File {
 }
 
 async function flush(): Promise<void> {
-  await new Promise((resolve) => setTimeout(resolve, 0));
-  await new Promise((resolve) => setTimeout(resolve, 0));
+  // WAV analysis now performs a header preflight read before the full read,
+  // so allow both FileReader macrotasks to settle.
+  await new Promise((resolve) => setTimeout(resolve, 15));
 }
 
 function successResult(durationSeconds = 2): {
@@ -70,17 +71,71 @@ describe('WaveformServiceImpl', () => {
     expect(mockAnalyze).toHaveBeenCalledTimes(1);
   });
 
-  it('falls back for unsupported extensions without analysis', () => {
+  it('reports unsupported extensions as unavailable without analysis', () => {
     const service = new WaveformServiceImpl({ version: 'original' });
     const file = new File(['hello'], 'x.txt', { type: 'text/plain' });
 
     service.loadFile(file);
 
-    // An extension the analyzer cannot handle is skipped up front (fallback),
-    // leaving audio playable.
-    expect(service.view.state).toBe('fallback');
+    // A format the analyzer cannot handle has no preview; playback is still
+    // available, and the state says so honestly.
+    expect(service.view.state).toBe('unavailable');
+    expect(service.view.message).toMatch(/unavailable for this format/i);
     expect(mockAnalyze).not.toHaveBeenCalled();
-    expect(service.view.message).toBeNull();
+  });
+
+  it('maps a worker failure to unavailable instead of staying in preparing', async () => {
+    const service = new WaveformServiceImpl({ version: 'original' });
+
+    service.loadFile(makeFile('x.wav'));
+    await flush();
+    expect(service.view.state).toBe('preparing');
+
+    resolvers[0]!({
+      type: 'failure',
+      reason: 'unsupported',
+    });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(service.view.state).toBe('unavailable');
+    expect(service.view.message).toMatch(/unavailable for this format/i);
+  });
+
+  it('maps an oversized WAV header to fallback before reading the whole file', async () => {
+    const service = new WaveformServiceImpl({ version: 'original' });
+
+    // A tiny file whose header claims 4 hours of 44.1 kHz stereo PCM. The
+    // preflight should skip analysis without invoking the worker.
+    const header = new ArrayBuffer(64);
+    const view = new DataView(header);
+    const write = (offset: number, text: string): void => {
+      for (let index = 0; index < text.length; index += 1) {
+        view.setUint8(offset + index, text.charCodeAt(index));
+      }
+    };
+    write(0, 'RIFF');
+    view.setUint32(4, 64 - 8, true);
+    write(8, 'WAVE');
+    write(12, 'fmt ');
+    view.setUint32(16, 16, true);
+    view.setUint16(20, 1, true);
+    view.setUint16(22, 2, true);
+    view.setUint32(24, 44100, true);
+    view.setUint32(28, 44100 * 4, true);
+    view.setUint16(32, 4, true);
+    view.setUint16(34, 16, true);
+    write(36, 'data');
+    view.setUint32(40, 4 * 44100 * 2 * 4 * 60 * 60, true);
+
+    const file = new File([header], 'long.wav', { type: 'audio/wav' });
+
+    service.loadFile(file);
+    await flush();
+    await flush();
+
+    expect(service.view.state).toBe('fallback');
+    expect(service.view.message).toMatch(/preview skipped/i);
+    expect(mockAnalyze).not.toHaveBeenCalled();
   });
 
   it('becomes ready when the worker returns peaks', async () => {

@@ -407,10 +407,21 @@ test.describe('comparison workspace', () => {
     await page.getByRole('button', { name: 'Edited', exact: true }).click();
     await expect(playerStatus(page)).toHaveText('Playing Edited. Switch versions at any time.');
 
+    // Both decks are playing, so a single sample can catch one media clock
+    // mid-update. Poll briefly for convergence instead of asserting on one
+    // frame (this was a Firefox-only flake in the release gate).
+    await expect
+      .poll(
+        async () => {
+          const diagnostics = await readDiagnostics(page);
+          return Math.abs(diagnostics.edited.currentTime - diagnostics.original.currentTime);
+        },
+        { timeout: 3_000 },
+      )
+      .toBeLessThan(0.12);
+
     const afterSwitch = await readDiagnostics(page);
-    expect(
-      Math.abs(afterSwitch.edited.currentTime - afterSwitch.original.currentTime),
-    ).toBeLessThan(0.12);
+    expect(afterSwitch.edited.currentTime).toBeGreaterThan(1);
   });
 
   test('E2E-18 pausing during a fade settles on the target deck', async ({ page }) => {
@@ -543,6 +554,64 @@ test.describe('comparison workspace', () => {
     await expect(page.locator('.slot--original .file-head__name')).toHaveText('original.wav');
     await expect(page.locator('.slot--original .slot__status')).toHaveText('Ready');
     await expect(playerStatus(page)).toHaveText('Both files are ready. Press Play to begin.');
+  });
+
+  test('E2E-25 slider fill terminates exactly at the thumb centre', async ({ page }) => {
+    await page.goto('/');
+
+    const measure = (wrapperSelector: string) =>
+      page.evaluate((selector) => {
+        const wrapper = document.querySelector(selector);
+        if (!wrapper) {
+          return null;
+        }
+        const rail = wrapper.querySelector('.range-control__rail')?.getBoundingClientRect();
+        const fill = wrapper.querySelector('.range-control__fill')?.getBoundingClientRect();
+        const thumb = wrapper.querySelector('.range-control__thumb')?.getBoundingClientRect();
+
+        if (!rail || !fill || !thumb) {
+          return null;
+        }
+
+        return {
+          railLeft: rail.left,
+          railWidth: rail.width,
+          fillWidth: fill.width,
+          thumbCenter: thumb.left + thumb.width / 2,
+        };
+      }, wrapperSelector);
+
+    for (const [value, fraction] of [
+      [0, 0],
+      [0.5, 0.5],
+      [1, 1],
+    ] as const) {
+      await setSliderValue(page, 'Master volume', value);
+      const geometry = await measure('.volume__range');
+
+      expect(geometry).not.toBeNull();
+      if (!geometry) return;
+
+      // Half a CSS pixel of tolerance: fill width and thumb centre are both
+      // percentages of the same inset rail box.
+      expect(geometry.fillWidth).toBeCloseTo(geometry.railWidth * fraction, 0);
+      expect(geometry.thumbCenter - geometry.railLeft).toBeCloseTo(
+        geometry.railWidth * fraction,
+        0,
+      );
+    }
+
+    // The same component drives the timeline; check it at 50 % of 4 s too.
+    skipAudioFlowOnWindowsWebkit();
+    await loadPair(page);
+    await setSliderValue(page, 'Playback position', 2);
+    const timeline = await measure('.timeline__range');
+
+    expect(timeline).not.toBeNull();
+    if (!timeline) return;
+
+    expect(timeline.fillWidth).toBeCloseTo(timeline.railWidth * 0.5, 0);
+    expect(timeline.thumbCenter - timeline.railLeft).toBeCloseTo(timeline.railWidth * 0.5, 0);
   });
 
   test('E2E-24 changes the transition duration without restarting playback', async ({ page }) => {

@@ -51,9 +51,15 @@ class ResizeObserverStub {
   }
 }
 
-vi.stubGlobal('ResizeObserver', ResizeObserverStub);
+// jsdom has no canvas backend. Returning null is enough for components that
+// guard on a missing 2D context; it avoids the noisy "Not implemented" log.
+Object.defineProperty(HTMLCanvasElement.prototype, 'getContext', {
+  configurable: true,
+  value: () => null,
+});
 
 beforeEach(() => {
+  vi.stubGlobal('ResizeObserver', ResizeObserverStub);
   installMatchMedia(false);
   window.localStorage.clear();
   document.documentElement.removeAttribute('data-theme');

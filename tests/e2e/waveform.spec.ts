@@ -43,11 +43,10 @@ test.describe('waveform and shared timeline', () => {
     await page.goto('/');
     await loadPair(page);
 
-    // Click the centre of the shared waveform container while paused; both
-    // decks must seek to the same canonical time. The pointer handler lives on
-    // the shared `.waveform` container, so both rows respond to the same click.
-    const container = page.locator('.waveform').first();
-    await container.click();
+    // The plot column is the seek surface. Its centre is 50% of the common
+    // duration; the A/B label gutter is deliberately excluded.
+    const plot = page.locator('.waveform__plot').first();
+    await plot.click();
 
     await expect
       .poll(async () => (await readDiagnostics(page)).original.currentTime, { timeout: 5_000 })
@@ -56,6 +55,129 @@ test.describe('waveform and shared timeline', () => {
       .poll(async () => (await readDiagnostics(page)).edited.currentTime, { timeout: 5_000 })
       .toBeCloseTo(2, 1);
     await expect(page.getByLabel('Elapsed time')).toHaveText('0:02');
+  });
+
+  test('seeks at 25 % and 70 % of the plot against the common duration', async ({ page }) => {
+    skipAudioFlowOnWindowsWebkit();
+    await page.goto('/');
+    await loadPair(page);
+
+    const plot = page.locator('.waveform__plot').first();
+    await expect(plot).toBeVisible();
+
+    // Click by fraction of the plot box. Playwright resolves a fresh bounding
+    // box for each click, so the entrance animation cannot invalidate it.
+    const clickAt = async (fraction: number): Promise<void> => {
+      const box = await plot.boundingBox();
+      expect(box).not.toBeNull();
+      if (!box) return;
+      await plot.click({ position: { x: box.width * fraction, y: box.height / 2 } });
+    };
+
+    await clickAt(0.25);
+    await expect
+      .poll(async () => (await readDiagnostics(page)).original.currentTime, { timeout: 5_000 })
+      .toBeCloseTo(1, 1);
+
+    await clickAt(0.7);
+    await expect
+      .poll(async () => (await readDiagnostics(page)).original.currentTime, { timeout: 5_000 })
+      .toBeCloseTo(2.8, 1);
+    await expect
+      .poll(async () => (await readDiagnostics(page)).edited.currentTime, { timeout: 5_000 })
+      .toBeCloseTo(2.8, 1);
+  });
+
+  test('clips mismatched lengths to the shared common duration', async ({ page }) => {
+    skipAudioFlowOnWindowsWebkit();
+    await page.goto('/');
+    // 3.0 s original vs 2.4 s edited: the shared window ends at 2.4 s.
+    await loadPair(page, 'mismatch-original.wav', 'mismatch-edited.wav');
+
+    await expect(totalTime(page)).toHaveText('0:02');
+
+    const plot = page.locator('.waveform__plot').first();
+    const box = await plot.boundingBox();
+    expect(box).not.toBeNull();
+    if (!box) return;
+
+    // Clicking the far right of the plot must land on the common end, never
+    // on the longer recording's own end.
+    await plot.click({ position: { x: box.width - 1, y: box.height / 2 } });
+
+    await expect
+      .poll(async () => (await readDiagnostics(page)).original.currentTime, { timeout: 5_000 })
+      .toBeCloseTo(2.4, 1);
+    await expect
+      .poll(async () => (await readDiagnostics(page)).edited.currentTime, { timeout: 5_000 })
+      .toBeCloseTo(2.4, 1);
+    await expect(page.getByLabel('Elapsed time')).toHaveText('0:02');
+  });
+
+  test('draws real non-empty pixels in both waveform canvases', async ({ page }) => {
+    skipAudioFlowOnWindowsWebkit();
+    await page.goto('/');
+    await loadPair(page);
+
+    await expect(page.locator('.waveform__canvas[data-ready="true"]')).toHaveCount(2);
+
+    // The fixtures are constant-amplitude sine tones, so a real symmetric
+    // envelope fills a large share of each canvas. Counting any non-zero alpha
+    // would pass on the faint centreline alone, which is exactly the failure
+    // this guards against: ink coverage and column height must be substantial.
+    const measureInk = (): Promise<Array<{ coverage: number; tallest: number }>> =>
+      page.evaluate(() =>
+        Array.from(document.querySelectorAll('.waveform__canvas')).map((canvas) => {
+          const element = canvas as HTMLCanvasElement;
+          const context = element.getContext('2d');
+          if (!context || element.width === 0 || element.height === 0) {
+            return { coverage: 0, tallest: 0 };
+          }
+
+          const pixels = context.getImageData(0, 0, element.width, element.height).data;
+          let opaque = 0;
+
+          for (let index = 3; index < pixels.length; index += 4) {
+            if (pixels[index]! > 0) {
+              opaque += 1;
+            }
+          }
+
+          let tallest = 0;
+
+          for (let x = 0; x < element.width; x += 1) {
+            let column = 0;
+            for (let y = 0; y < element.height; y += 1) {
+              if (pixels[(y * element.width + x) * 4 + 3]! > 0) {
+                column += 1;
+              }
+            }
+            tallest = Math.max(tallest, column);
+          }
+
+          return { coverage: opaque / (element.width * element.height), tallest };
+        }),
+      );
+
+    await expect
+      .poll(
+        async () => {
+          const lanes = await measureInk();
+          return (
+            lanes.length === 2 && lanes.every((lane) => lane.coverage > 0.2 && lane.tallest > 12)
+          );
+        },
+        { timeout: 10_000 },
+      )
+      .toBe(true);
+
+    const lanes = await measureInk();
+    expect(lanes).toHaveLength(2);
+
+    for (const lane of lanes) {
+      expect(lane.coverage).toBeGreaterThan(0.2);
+      expect(lane.tallest).toBeGreaterThan(12);
+    }
   });
 
   test('timeline slider and waveform playhead stay in sync', async ({ page }) => {

@@ -1,6 +1,6 @@
 # Implementation decisions
 
-This document records the decisions that shaped v0.1 and v0.2 and the trade-offs behind them. The acceptance contract is the expanded v0.2 plan; this is the engineering rationale.
+This document records the decisions that shaped v0.1 through v0.3 and the trade-offs behind them. The acceptance contracts are the expanded v0.2 and v0.3 plans; this is the engineering rationale.
 
 ## Static single-page app, no Worker entry
 
@@ -147,8 +147,8 @@ StrictMode intentionally mounts, unmounts and remounts components in development
 
 ## Test strategy
 
-- **Vitest + Testing Library**: pure crossfade math, validation, formatting, theme resolution, engine state machine with a fake host, and component accessibility/state behaviour. v0.2 adds deterministic coverage for operation cancellation, paused seeking, post-seek `canplay`, end-of-media pause, metadata timeout, generic MIME types, fade interruption and crossfade duration changes.
-- **Playwright**: real browser, real Web Audio, real `MediaElement` playback and generated local WAV fixtures. Gains are sampled over time to prove the crossfade passes through intermediate values rather than snapping. v0.2 covers startup cancellation, rapid reversal, seek-while-playing, pause during a fade, AudioContext suspension recovery, generic MIME acceptance, repeated replace/remove cycles and the crossfade slider.
+- **Vitest + Testing Library**: pure crossfade math, validation, formatting, theme resolution, engine state machine with a fake host, and component accessibility/state behaviour. v0.2 adds deterministic coverage for operation cancellation, paused seeking, post-seek `canplay`, end-of-media pause, metadata timeout, generic MIME types, fade interruption and crossfade duration changes. v0.3 adds WAV header/peak parsing, the worker reply-port handshake, resource budgeting, waveform lifecycle, shared-duration clipping and waveform rendering states.
+- **Playwright**: real browser, real Web Audio, real `MediaElement` playback and generated local WAV fixtures. Gains are sampled over time to prove the crossfade passes through intermediate values rather than snapping. v0.2 covers startup cancellation, rapid reversal, seek-while-playing, pause during a fade, AudioContext suspension recovery, generic MIME acceptance, repeated replace/remove cycles and the crossfade slider. v0.3 adds real canvas pixels, shared-axis seeking at several fractions, mismatch clipping, playhead sync, slider fill/thumb geometry and the fallback path.
 - **Generated fixtures**: deterministic sine tones, a shorter pair, an empty file, a text file with an unsupported extension and text masquerading as `.mp3`. No external samples, licences or downloads are involved.
 - **WebKit on Windows**: that Playwright build cannot decode local audio in this environment, so the audio-flow specs skip there with an explicit message instead of pretending to pass. Chromium is the required CI gate; Firefox runs locally and in the full matrix.
 

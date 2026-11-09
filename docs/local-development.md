@@ -36,7 +36,7 @@ Vite prints the URL, normally `http://localhost:5173`. Development builds expose
 | `npm run format:check` | Prettier check for CI.                                               |
 | `npm test`             | Vitest run.                                                          |
 | `npm run test:watch`   | Vitest watch mode.                                                   |
-| `npm run test:e2e`     | Playwright Chromium gate (24 specs).                                 |
+| `npm run test:e2e`     | Playwright Chromium gate (34 specs).                                 |
 | `npm run test:e2e:all` | Playwright Chromium + Firefox + WebKit.                              |
 | `npm run test:e2e:ui`  | Playwright interactive UI.                                           |
 | `npm run fixtures`     | Regenerate the local WAV/failure fixtures.                           |
@@ -53,7 +53,7 @@ npx playwright install chromium
 npx playwright install firefox webkit
 ```
 
-`npm run test:e2e` starts the Vite dev server on `127.0.0.1:4173` and runs 24 tests in Chromium. `npm run test:e2e:all` runs Chromium, then Firefox, then WebKit sequentially; launching all three engines at once exhausted the local WebKit process on Windows, so the matrix script intentionally avoids that. You can also target one project directly:
+`npm run test:e2e` starts the Vite dev server on `127.0.0.1:4173` and runs 34 tests in Chromium. `npm run test:e2e:all` runs Chromium, then Firefox, then WebKit sequentially; launching all three engines at once exhausted the local WebKit process on Windows, so the matrix script intentionally avoids that. You can also target one project directly:
 
 ```bash
 npx playwright test --project=firefox
@@ -71,7 +71,7 @@ The suite's global setup writes deterministic fixtures to `tests/e2e/fixtures/` 
 
 That is nine generated files. All audio fixtures are generated sine tones. No external audio sample, licence or network stream is involved.
 
-The v0.2 specs also exercise the Crossfade slider (80–600 ms, 20 ms steps, 180 ms default), generic MIME acceptance, AudioContext suspension recovery and paused/playing seeking.
+The v0.2 specs also exercise the Crossfade slider (80–600 ms, 20 ms steps, 180 ms default), generic MIME acceptance, AudioContext suspension recovery and paused/playing seeking. The v0.3 specs add real waveform pixels, shared-axis seeking at 25 %/50 %/70 %, mismatch clipping to the common duration, playhead sync, slider fill/thumb geometry and the waveform fallback path.
 
 ### WebKit on Windows
 
