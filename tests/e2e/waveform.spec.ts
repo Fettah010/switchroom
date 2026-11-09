@@ -4,7 +4,6 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
   editedInput,
-  fixturePath,
   loadPair,
   originalInput,
   pauseButton,
@@ -15,15 +14,55 @@ import {
   totalTime,
 } from './helpers';
 
-let bigWavPath = '';
+let longWavPath = '';
+
+/**
+ * A real, playable PCM WAV long enough to exceed the 30-minute analysis
+ * duration ceiling. 8 kHz mono 8-bit keeps it under 15 MB while still decoding
+ * in the browser, so both decks become ready with waveform analysis skipped.
+ */
+function makeLongWav(durationSeconds: number): Uint8Array {
+  const sampleRate = 8000;
+  const channelCount = 1;
+  const bitsPerSample = 8;
+  const blockAlign = channelCount * (bitsPerSample / 8);
+  const byteRate = sampleRate * blockAlign;
+  const dataLength = durationSeconds * byteRate;
+
+  const header = new ArrayBuffer(44);
+  const view = new DataView(header);
+  const writeAscii = (offset: number, text: string): void => {
+    for (let index = 0; index < text.length; index += 1) {
+      view.setUint8(offset + index, text.charCodeAt(index));
+    }
+  };
+
+  writeAscii(0, 'RIFF');
+  view.setUint32(4, 36 + dataLength, true);
+  writeAscii(8, 'WAVE');
+  writeAscii(12, 'fmt ');
+  view.setUint32(16, 16, true);
+  view.setUint16(20, 1, true); // PCM
+  view.setUint16(22, channelCount, true);
+  view.setUint32(24, sampleRate, true);
+  view.setUint32(28, byteRate, true);
+  view.setUint16(32, blockAlign, true);
+  view.setUint16(34, bitsPerSample, true);
+  writeAscii(36, 'data');
+  view.setUint32(40, dataLength, true);
+
+  const file = new Uint8Array(44 + dataLength);
+  file.set(new Uint8Array(header), 0);
+  return file;
+}
 
 test.describe('waveform and shared timeline', () => {
   test.beforeAll(async () => {
     const dir = join(tmpdir(), 'switchroom-e2e');
     await mkdir(dir, { recursive: true });
-    // 100 MB file: above the default 60 MB source-size ceiling → too-large fallback.
-    bigWavPath = join(dir, 'big.wav');
-    await writeFile(bigWavPath, new Uint8Array(100 * 1024 * 1024));
+    // 31 minutes of silence: valid and playable, but past the analysis limit.
+    longWavPath = join(dir, 'long.wav');
+    await writeFile(longWavPath, makeLongWav(31 * 60));
   });
 
   test('renders both waveform rows with A/B labels after files load', async ({ page }) => {
@@ -197,17 +236,27 @@ test.describe('waveform and shared timeline', () => {
       .toBeGreaterThan(1.05);
   });
 
-  test('waveform fallback keeps audio usable when analysis is skipped', async ({ page }) => {
+  test('waveform fallback keeps audio usable and shows a centreline, not a blank fill', async ({
+    page,
+  }) => {
     skipAudioFlowOnWindowsWebkit();
     await page.goto('/');
 
-    // A file far above the source-size ceiling triggers the too-large fallback.
-    await originalInput(page).setInputFiles(bigWavPath);
-    await editedInput(page).setInputFiles(fixturePath('edited.wav'));
+    // Both files are valid and playable, but 31 minutes exceeds the analysis
+    // duration ceiling, so the waveforms fall back while playback stays usable.
+    await originalInput(page).setInputFiles(longWavPath);
+    await editedInput(page).setInputFiles(longWavPath);
 
+    await expect(page.locator('.slot--original .slot__status')).toHaveText('Ready');
     await expect(page.locator('.slot--edited .slot__status')).toHaveText('Ready');
-    // Original stays non-ready (oversized), so Play remains disabled.
-    await expect(playButton(page)).toBeDisabled();
+    await expect(page.locator('.waveform__status')).toContainText(/Waveform preview skipped/i);
+    await expect(playButton(page)).toBeEnabled();
+
+    // No peaks means no misleading progress tint, but each lane still shows a
+    // visible centreline so the plot reads as intentionally flat.
+    await expect(page.locator('.waveform__canvas[data-placeholder="true"]')).toHaveCount(2);
+    await expect(page.locator('.waveform__progress')).toHaveCount(0);
+    await expect(page.locator('.waveform__playhead')).toHaveCount(1);
   });
 
   test('reduced motion keeps all content visible', async ({ page }) => {

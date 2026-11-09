@@ -135,18 +135,26 @@ test.describe('theme and responsive layout', () => {
       return Math.abs(ra.top - rb.top) <= 1;
     });
 
-    const originalBox = await page.locator('.slot--original').boundingBox();
-    const editedBox = await page.locator('.slot--edited').boundingBox();
-    expect(originalBox).not.toBeNull();
-    expect(editedBox).not.toBeNull();
-    expect(editedBox!.x).toBeGreaterThan(originalBox!.x + originalBox!.width - 1);
-    expect(Math.abs(editedBox!.y - originalBox!.y)).toBeLessThan(2);
+    // Read both rects in one synchronous evaluation so an entrance animation
+    // running between two protocol round-trips cannot shift one box relative
+    // to the other.
+    const layout = await page.evaluate(() => {
+      const original = document.querySelector('.slot--original')!.getBoundingClientRect();
+      const edited = document.querySelector('.slot--edited')!.getBoundingClientRect();
 
-    const overflow = await page.evaluate(() => ({
-      document: document.documentElement.scrollWidth,
-      viewport: window.innerWidth,
-    }));
-    expect(overflow.document).toBeLessThanOrEqual(overflow.viewport + 1);
+      return {
+        original: { x: original.x, y: original.y, width: original.width },
+        edited: { x: edited.x, y: edited.y },
+        overflow: {
+          document: document.documentElement.scrollWidth,
+          viewport: window.innerWidth,
+        },
+      };
+    });
+
+    expect(layout.edited.x).toBeGreaterThan(layout.original.x + layout.original.width - 1);
+    expect(Math.abs(layout.edited.y - layout.original.y)).toBeLessThan(2);
+    expect(layout.overflow.document).toBeLessThanOrEqual(layout.overflow.viewport + 1);
   });
 
   test('E2E-26 long filenames and errors stay contained at 360 px', async ({ page }) => {

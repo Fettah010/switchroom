@@ -107,7 +107,7 @@ npm run test:e2e:all   # Playwright, Chromium + Firefox + WebKit
 npm run test:e2e:ui    # Playwright UI mode
 ```
 
-The v0.3.0 source tree passes 179 Vitest tests across 14 files, 34 Chromium Playwright specs and 34 Firefox specs. WebKit reports 5 passed and 29 skipped on Windows for the environment reason above.
+The v0.3.0 source tree passes 185 Vitest tests across 14 files, 34 Chromium Playwright specs and 34 Firefox specs. WebKit reports 5 passed and 29 skipped on Windows for the environment reason above.
 
 The Playwright suite generates its own deterministic WAV and failure fixtures in `tests/e2e/fixtures/` before each run; that folder is ignored by git. Regenerate them manually with `npm run fixtures`.
 

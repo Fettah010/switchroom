@@ -9,7 +9,7 @@ All notable changes to Switchroom are recorded here. The format follows [Keep a 
 - Original and Edited waveform previews drawn on one shared time axis, with visible A/B labels and a shared playhead.
 - Click/tap either waveform row to seek both decks through the existing canonical engine operation; the timeline slider seeks to the same canonical position.
 - Downsampled, bounded peak generation (max 2400 buckets) in a Dedicated Worker where available; WAV parsed directly in the worker, other codecs decoded on the main thread then reduced.
-- Bounded resource policy (~60 MB encoded-input / ~240 MB decoded-PCM ceilings on desktop, lower on ≤ 4 GB devices) with a designed fallback state for large or unsupported analysis files.
+- Bounded resource policy (256 MB direct-read WAV / 32 MB compressed-input / ~240 MB decoded-PCM ceilings on desktop, lower on ≤ 4 GB devices) with a designed fallback state for large or unsupported analysis files.
 - Waveform lifecycle states: waiting, preparing, ready, fallback and unavailable; playback remains available throughout.
 - Full-page entrance/reveal motion: header, workspace heading, both file slots (staggered), player and waveform, and footnote/footer; dropzone hover/focus/press/drag feedback.
 - A shared custom range-control system for the timeline, master volume and crossfade sliders, replacing browser-default range styling.
@@ -26,6 +26,8 @@ All notable changes to Switchroom are recorded here. The format follows [Keep a 
 ### Fixed
 
 - Waveform analysis no longer stalls in "Preparing waveform…": the worker's reply `MessagePort` is now explicitly started, so results are delivered.
+- Full-length WAVs no longer fall back to a blank timeline: direct-read WAV now uses its own 256 MB source ceiling and is not charged the decoded-Float32 estimate, so ordinary 60–100 MB songs render real waves.
+- A skipped waveform now shows a visible centreline and no misleading progress tint, so a fallback lane reads as intentionally flat rather than broken.
 - Play button and surrounding controls no longer jitter or shift when the transport label changes between Play / Starting… / Pause / switching.
 - Status text no longer pushes sliders around; the status area has a reserved height.
 - Timeline, volume and crossfade fills now terminate exactly at the thumb centre at 0 %, 50 % and 100 %, verified by DOM measurement in Chromium and Firefox.
@@ -33,7 +35,7 @@ All notable changes to Switchroom are recorded here. The format follows [Keep a 
 
 ### Verified
 
-- 179 Vitest unit/component tests pass across 14 files, including WAV parser, worker client, resource budget, service lifecycle, shared-fraction and waveform-UI coverage.
+- 185 Vitest unit/component tests pass across 14 files, including WAV parser, worker client, resource budget, service lifecycle, shared-fraction and waveform-UI coverage.
 - 34 Chromium Playwright specs pass; 34 Firefox Playwright specs pass.
 - WebKit 27.2 on Windows: 5 specs pass, 29 audio-dependent specs skip with an explicit message.
 - Formatting, lint, strict type-check, production build, Workers-runtime preview and preview smoke check pass.

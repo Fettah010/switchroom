@@ -71,18 +71,22 @@ Invariants:
 Before decoding, the service estimates risk from file size and available
 metadata and picks a conservative budget:
 
-- default encoded-input ceiling: 60 MB (20 MB on ≤ 4 GB devices);
+- default direct-read WAV ceiling: 256 MB (128 MB on ≤ 4 GB devices);
 - tighter encoded ceiling for compressed formats whose duration is unknown
-  until decode;
-- default decoded-PCM ceiling: 240 MB (60 MB on ≤ 4 GB devices), with a 2×
-  analysis-copy factor so transient channel copies are counted;
-- duration ceiling for very long files;
+  until decode: 32 MB (12 MB on ≤ 4 GB devices);
+- default decoded-PCM ceiling for compressed formats: 240 MB (60 MB on ≤ 4 GB
+  devices), with a 2× analysis-copy factor so transient channel copies are
+  counted;
+- duration ceiling: 30 minutes (10 minutes on ≤ 4 GB devices);
 - max buckets: 2400 (1200 on ≤ 4 GB devices).
 
-A WAV header preflight reads only the first 64 KB, so an oversized or
+WAV is parsed and reduced straight from its source buffer, so no decoded
+Float32 copy is budgeted and a normal full-length CD-quality WAV (60–100 MB)
+passes. A WAV header preflight reads only the first 64 KB, so an oversized or
 over-long WAV is rejected before the whole file is read into memory.
 `navigator.deviceMemory` is feature-detected and only informs the budget; it
-is never required. Unknown duration uses a conservative per-MB heuristic.
+is never required. Compressed formats are treated conservatively when their
+duration is unknown.
 
 ## Worker (`src/waveform/waveformWorker.ts`)
 

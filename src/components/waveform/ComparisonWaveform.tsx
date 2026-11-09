@@ -90,6 +90,7 @@ export function ComparisonWaveform({ original, edited }: ComparisonWaveformProps
 
   const originalPeaks = originalView.state === 'ready' ? (originalView.peaks?.peaks ?? null) : null;
   const editedPeaks = editedView.state === 'ready' ? (editedView.peaks?.peaks ?? null) : null;
+  const hasAnyPeaks = Boolean(originalPeaks || editedPeaks);
   const message = statusMessage(originalView, editedView, missing);
   const originalFraction = sharedFraction(originalView, duration);
   const editedFraction = sharedFraction(editedView, duration);
@@ -126,21 +127,26 @@ export function ComparisonWaveform({ original, edited }: ComparisonWaveformProps
     }
 
     const playhead = playheadRef.current;
-    const progress = progressRef.current;
-    if (!playhead || !progress) {
+    if (!playhead) {
       return undefined;
     }
 
+    // The progress tint is only meaningful when at least one lane has real
+    // peaks; without it, it would look like an empty plot filling with colour.
     const publish = (time: number): void => {
       const fraction = Math.min(Math.max(time / duration, 0), 1);
       playhead.style.transform = `translateX(${fraction * plotWidth}px)`;
-      progress.style.transform = `scaleX(${fraction})`;
+      // Read the ref on every publish: the tint mounts only once peaks exist.
+      const progress = progressRef.current;
+      if (progress) {
+        progress.style.transform = `scaleX(${fraction})`;
+      }
     };
 
     publish(snapshot.currentTime);
 
     return engine.subscribeToTime(publish);
-  }, [engine, enabled, duration, plotWidth, snapshot.currentTime]);
+  }, [engine, enabled, duration, plotWidth, snapshot.currentTime, hasAnyPeaks]);
 
   const seekFromPoint = useCallback(
     (clientX: number): void => {
@@ -244,7 +250,7 @@ export function ComparisonWaveform({ original, edited }: ComparisonWaveformProps
 
             {enabled && (
               <div className="waveform__overlay" aria-hidden="true">
-                <div ref={progressRef} className="waveform__progress" />
+                {hasAnyPeaks && <div ref={progressRef} className="waveform__progress" />}
                 <div ref={playheadRef} className="waveform__playhead" />
               </div>
             )}

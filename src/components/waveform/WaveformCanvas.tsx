@@ -196,6 +196,7 @@ export function WaveformCanvas({
       ref={canvasRef}
       className="waveform__canvas"
       data-ready={peaks ? 'true' : 'false'}
+      data-placeholder={peaks ? 'false' : 'true'}
       style={{ height }}
       aria-hidden="true"
     />

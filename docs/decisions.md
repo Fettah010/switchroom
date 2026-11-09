@@ -90,7 +90,7 @@ The v0.2 scope was reliability and precision for the local A/B player. Adding up
 - Waveform work is cancellable and generation-safe (replace/remove/dispose invalidate in-flight requests).
 - Common PCM WAV is parsed directly in a Dedicated Worker; non-WAV codecs are decoded on the main thread (size/memory bounded) then reduced to peaks in the worker.
 - WebCodecs/`AudioDecoder` is optional and feature-detected; no FFmpeg/WASM.
-- Bounded resource policy: ~60 MB encoded-input / ~240 MB decoded-PCM ceilings on desktop, lower on ≤ 4 GB devices; up to 2400 buckets.
+- Bounded resource policy: 256 MB direct-read WAV / 32 MB compressed-input / ~240 MB decoded-PCM ceilings on desktop, lower on ≤ 4 GB devices; up to 2400 buckets.
 - Large or unsupported files fall back to a plain timeline; playback stays available.
 - Canvas renderer; peaks never uploaded or persisted.
 

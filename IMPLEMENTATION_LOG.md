@@ -47,7 +47,7 @@ Also fixed during the pass:
 ## Verification (final)
 
 - `format:check`, `lint`, `typecheck`: pass.
-- Vitest: **179 tests across 14 files** pass.
+- Vitest: **185 tests across 14 files** pass.
 - Playwright: **34 Chromium**, **34 Firefox** pass. WebKit on Windows: 5 pass,
   29 audio-dependent specs skip with an explicit message.
 - Production build passes; the worker emits a separate
@@ -60,3 +60,37 @@ Also fixed during the pass:
 Exclusions enforced: no accounts/cloud/persistence/sharing/analytics; no FFmpeg/WASM;
 no second playhead; peaks never uploaded; waveform never blocks Play; v0.4+ features
 not added.
+
+## Post-release defect pass: full-length WAVs fell back
+
+A user report showed 62 MB and 93 MB / 5:37 WAVs rendering as a blank plot with the
+progress tint filling it. The files were valid and playable; the waveform budget
+rejected them before analysis:
+
+1. The generic 60 MB encoded ceiling rejected both files.
+2. The pre-header `fileSize * 4` estimate treated a 62–93 MB WAV as 248–372 MB of
+   decoded Float32, exceeding the 240 MB decoded ceiling.
+3. The WAV header preflight then hit the same 60 MB ceiling again.
+
+WAV is parsed directly by the worker and never expanded into a full Float32 copy,
+so the decoded estimate does not apply to it. `selectBudget` now separates the two
+paths:
+
+- direct-read WAV: 256 MB source ceiling (128 MB on ≤ 4 GB devices), duration
+  ceiling only, no decoded-PCM estimate;
+- compressed/unknown formats: 32 MB encoded ceiling (12 MB low-memory), decoded-PCM
+  estimate with the 2× analysis-copy factor, and the duration ceiling.
+
+The fallback UI was also made intentional: lanes without peaks render a visible
+centreline (`data-placeholder`) and the progress tint is hidden when neither lane
+has peaks, so a skipped preview no longer looks like an empty plot being filled.
+
+Verified in Chromium with generated 62 MB 16-bit and 93 MB 24-bit 5:37 WAVs: both
+decks reached Ready, both canvases reported `data-ready="true"`, and each lane drew
+67.8 % ink coverage with a 38 px tall column. A new E2E case uses a valid 31-minute
+8 kHz WAV to exercise the duration fallback with both decks ready, asserting the
+centreline, hidden progress tint and usable Play button.
+
+Gate after the fix: `format:check`, `lint`, `typecheck`, 185 Vitest tests, 34
+Chromium and 34 Firefox Playwright specs, WebKit 5 pass / 29 skip, production build,
+preview smoke and public smoke all pass.

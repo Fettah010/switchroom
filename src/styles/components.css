@@ -1270,7 +1270,8 @@
   transition: opacity 240ms var(--ease-out);
 }
 
-.waveform__canvas[data-ready='true'] {
+.waveform__canvas[data-ready='true'],
+.waveform__canvas[data-placeholder='true'] {
   opacity: 1;
 }
 

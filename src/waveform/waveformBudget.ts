@@ -9,6 +9,11 @@
  * on low-memory devices. `navigator.deviceMemory` is feature-detected and only
  * informs the budget; it is never required.
  *
+ * PCM WAV is read directly by the worker and never expanded into a full
+ * Float32 copy, so its real footprint is the source file plus the compact
+ * peaks. Its source ceiling is therefore much higher than a compressed file's:
+ * a normal full-length CD-quality WAV is 60–100 MB.
+ *
  * Compressed formats get a tighter encoded-size ceiling because their decoded
  * duration cannot be inferred from the file size. A small MP3 can expand to
  * hours of PCM, so the source cap is the only safe pre-decode guard; the
@@ -16,6 +21,7 @@
  */
 
 export interface WaveformBudget {
+  /** Direct-read (WAV) source ceiling; source size is the memory bound. */
   maxSourceBytes: number;
   /** Encoded-size ceiling for formats whose decoded duration is unknown. */
   maxCompressedSourceBytes: number;
@@ -30,7 +36,7 @@ const ANALYSIS_COPY_FACTOR = 2;
 
 /** Default limits, measured against a typical desktop machine. */
 export const DEFAULT_BUDGET: WaveformBudget = {
-  maxSourceBytes: 60 * 1024 * 1024, // 60 MB encoded input
+  maxSourceBytes: 256 * 1024 * 1024, // 256 MB direct-read WAV input
   maxCompressedSourceBytes: 32 * 1024 * 1024, // 32 MB compressed input
   maxDecodedBytes: 240 * 1024 * 1024, // 240 MB decoded PCM ceiling
   maxDurationSeconds: 30 * 60,
@@ -40,7 +46,7 @@ export const DEFAULT_BUDGET: WaveformBudget = {
 
 /** Conservative limits for constrained/memory-constrained devices. */
 export const LOW_MEMORY_BUDGET: WaveformBudget = {
-  maxSourceBytes: 20 * 1024 * 1024, // 20 MB encoded input
+  maxSourceBytes: 128 * 1024 * 1024, // 128 MB direct-read WAV input
   maxCompressedSourceBytes: 12 * 1024 * 1024, // 12 MB compressed input
   maxDecodedBytes: 60 * 1024 * 1024, // 60 MB decoded PCM ceiling
   maxDurationSeconds: 10 * 60,
@@ -70,8 +76,12 @@ export function estimateDecodedBytes(
   return durationSeconds * sampleRate * channelCount * 4;
 }
 
-function isCompressedExtension(extension: string | null): boolean {
-  return extension !== null && extension !== 'wav';
+function hasUsableDuration(durationSeconds: number | null): durationSeconds is number {
+  return durationSeconds !== null && Number.isFinite(durationSeconds) && durationSeconds > 0;
+}
+
+function isUsableSize(fileSizeBytes: number): boolean {
+  return Number.isFinite(fileSizeBytes) && fileSizeBytes >= 0;
 }
 
 /** Pick the budget based on device memory hints and file characteristics. */
@@ -89,29 +99,40 @@ export function selectBudget(
 
   const base = isLowMemory ? LOW_MEMORY_BUDGET : DEFAULT_BUDGET;
 
-  // Encoded input larger than the source ceiling cannot be analysed safely.
-  if (fileSizeBytes > base.maxSourceBytes) {
+  // PCM WAV is parsed and reduced straight from the source buffer, so no
+  // decoded Float32 copy exists to budget for. Source size is the real memory
+  // bound, and a normal full-length CD-quality WAV (60–100 MB) must pass.
+  if (extension === 'wav') {
+    if (!isUsableSize(fileSizeBytes) || fileSizeBytes > base.maxSourceBytes) {
+      return { ...base, reason: 'too-large' };
+    }
+
+    // Without a duration the worker can still scan safely; the source ceiling
+    // already bounds the work.
+    if (!hasUsableDuration(durationSeconds)) {
+      return { ...base, reason: 'unknown-duration' };
+    }
+
+    if (durationSeconds > base.maxDurationSeconds) {
+      return { ...base, reason: 'too-large' };
+    }
+
+    return base;
+  }
+
+  // Compressed (or unknown) formats: encoded size says little about decoded
+  // size, so apply the tighter encoded ceiling and estimate the decoded PCM.
+  if (!isUsableSize(fileSizeBytes) || fileSizeBytes > base.maxCompressedSourceBytes) {
     return { ...base, reason: 'too-large' };
   }
 
-  // A compressed file's decoded size is unrelated to its encoded size, so use
-  // the tighter compressed ceiling until the decoder reports real metadata.
-  if (durationSeconds === null && isCompressedExtension(extension)) {
-    if (fileSizeBytes > base.maxCompressedSourceBytes) {
-      return { ...base, reason: 'too-large' };
-    }
+  if (!hasUsableDuration(durationSeconds)) {
     return { ...base, reason: 'unknown-duration' };
   }
 
   const decoded = estimateDecodedBytes(durationSeconds, sampleRate, channelCount);
 
-  // Unknown duration: use a conservative per-MB heuristic so a huge file with
-  // missing metadata still falls back rather than risking unbounded decode.
   if (decoded === null) {
-    const estimatedFromSize = fileSizeBytes * 4; // Float32 worst case for 8-bit PCM
-    if (estimatedFromSize > base.maxDecodedBytes) {
-      return { ...base, reason: 'too-large' };
-    }
     return { ...base, reason: 'unknown-duration' };
   }
 
@@ -121,7 +142,7 @@ export function selectBudget(
     return { ...base, reason: 'too-large' };
   }
 
-  if (durationSeconds !== null && durationSeconds > base.maxDurationSeconds) {
+  if (durationSeconds > base.maxDurationSeconds) {
     return { ...base, reason: 'too-large' };
   }
 

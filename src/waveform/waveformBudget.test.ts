@@ -7,41 +7,55 @@ import {
 } from './waveformBudget';
 
 describe('waveformBudget', () => {
-  it('accepts a normal-sized file', () => {
-    const budget = selectBudget(5 * 1024 * 1024, 60, 44100, 2);
+  it('accepts a normal-sized compressed file', () => {
+    const budget = selectBudget(5 * 1024 * 1024, 60, 44100, 2, 'mp3');
 
     expect(budget.reason).toBe('ok');
     expect(budget.maxSourceBytes).toBe(DEFAULT_BUDGET.maxSourceBytes);
     expect(budget.maxDecodedBytes).toBe(DEFAULT_BUDGET.maxDecodedBytes);
   });
 
-  it('falls back when the source file is too large', () => {
-    const budget = selectBudget(100 * 1024 * 1024, 600, 44100, 2);
+  it('accepts a full-length CD-quality WAV above the compressed ceiling', () => {
+    // Regression: a 93 MB / 5:37 WAV is a normal song, not an oversized file.
+    const budget = selectBudget(93 * 1024 * 1024, 337, 44100, 2, 'wav');
 
-    expect(budget.reason).toBe('too-large');
-    expect(budget.maxSourceBytes).toBeLessThanOrEqual(100 * 1024 * 1024);
+    expect(budget.reason).toBe('ok');
   });
 
-  it('falls back when estimated decoded size exceeds the budget', () => {
-    // 1 hour of stereo 44.1 kHz float32 PCM is well over the default ceiling.
-    const budget = selectBudget(5 * 1024 * 1024, 3600, 44100, 2);
+  it('does not apply the decoded-PCM ceiling to a direct-read WAV', () => {
+    // 30 minutes of stereo 44.1 kHz would exceed 1 GB if decoded to Float32,
+    // but the worker scans the PCM source directly and never builds that copy.
+    const budget = selectBudget(256 * 1024 * 1024, 30 * 60, 44100, 2, 'wav');
+
+    expect(budget.reason).toBe('ok');
+  });
+
+  it('accepts a WAV at exactly the direct-read source ceiling', () => {
+    const budget = selectBudget(DEFAULT_BUDGET.maxSourceBytes, 60, 44100, 2, 'wav');
+
+    expect(budget.reason).toBe('ok');
+  });
+
+  it('rejects a WAV above the direct-read source ceiling', () => {
+    const budget = selectBudget(DEFAULT_BUDGET.maxSourceBytes + 1, 60, 44100, 2, 'wav');
 
     expect(budget.reason).toBe('too-large');
   });
 
-  it('uses a conservative budget when duration is unknown but size is small', () => {
-    const budget = selectBudget(5 * 1024 * 1024, null, null, null);
+  it('proceeds with an unknown-duration WAV under the source ceiling', () => {
+    const budget = selectBudget(93 * 1024 * 1024, null, null, null, 'wav');
 
     expect(budget.reason).toBe('unknown-duration');
   });
 
-  it('uses a conservative budget when duration is unknown and size is huge', () => {
-    const budget = selectBudget(400 * 1024 * 1024, null, null, null);
+  it('falls back when a WAV exceeds the duration ceiling', () => {
+    // Mono 8 kHz stays far below the source ceiling but runs past 30 minutes.
+    const budget = selectBudget(1024, 31 * 60, 8000, 1, 'wav');
 
     expect(budget.reason).toBe('too-large');
   });
 
-  it('uses a tighter source ceiling for compressed formats with unknown duration', () => {
+  it('uses the tighter compressed source ceiling for encoded formats', () => {
     const budget = selectBudget(
       DEFAULT_BUDGET.maxCompressedSourceBytes + 1,
       null,
@@ -60,18 +74,42 @@ describe('waveformBudget', () => {
     expect(budget.reason).toBe('unknown-duration');
   });
 
-  it('falls back when decoded duration exceeds the duration ceiling', () => {
-    // Mono 8 kHz stays inside the decoded-byte ceiling but runs far past the
-    // 30-minute duration limit.
-    const budget = selectBudget(1024, 31 * 60, 8000, 1, 'wav');
+  it('falls back when a compressed file decodes beyond the PCM ceiling', () => {
+    // 121 MB decoded PCM is under the 240 MB ceiling on its own, but the
+    // temporary channel copies sent to the worker push the footprint over it.
+    const budget = selectBudget(
+      5 * 1024 * 1024,
+      (121 * 1024 * 1024) / (44100 * 2 * 4),
+      44100,
+      2,
+      'mp3',
+    );
 
     expect(budget.reason).toBe('too-large');
   });
 
-  it('budgets for the temporary channel copies sent to the worker', () => {
-    // 121 MB decoded PCM is under the 240 MB ceiling on its own, but the
-    // analysis copy pushes the real footprint over it.
-    const budget = selectBudget(1024, (121 * 1024 * 1024) / (44100 * 2 * 4), 44100, 2, 'wav');
+  it('falls back when a compressed duration exceeds the duration ceiling', () => {
+    const budget = selectBudget(1024, 31 * 60, 8000, 1, 'mp3');
+
+    expect(budget.reason).toBe('too-large');
+  });
+
+  it('treats an unknown extension conservatively', () => {
+    // Without a known extension there is no direct-read guarantee, so the
+    // compressed ceiling applies.
+    const budget = selectBudget(DEFAULT_BUDGET.maxCompressedSourceBytes + 1, 60, 44100, 2);
+
+    expect(budget.reason).toBe('too-large');
+  });
+
+  it('uses a conservative budget when duration is unknown but size is small', () => {
+    const budget = selectBudget(5 * 1024 * 1024, null, null, null);
+
+    expect(budget.reason).toBe('unknown-duration');
+  });
+
+  it('uses a conservative budget when duration is unknown and size is huge', () => {
+    const budget = selectBudget(400 * 1024 * 1024, null, null, null);
 
     expect(budget.reason).toBe('too-large');
   });
@@ -84,11 +122,32 @@ describe('waveformBudget', () => {
     });
 
     try {
-      const budget = selectBudget(5 * 1024 * 1024, 60, 44100, 2);
+      const budget = selectBudget(5 * 1024 * 1024, 60, 44100, 2, 'wav');
 
       expect(budget.maxSourceBytes).toBe(LOW_MEMORY_BUDGET.maxSourceBytes);
       expect(budget.maxDecodedBytes).toBe(LOW_MEMORY_BUDGET.maxDecodedBytes);
       expect(budget.maxBucketCount).toBe(LOW_MEMORY_BUDGET.maxBucketCount);
+    } finally {
+      Object.defineProperty(navigator, 'deviceMemory', {
+        value: original,
+        configurable: true,
+      });
+    }
+  });
+
+  it('applies the low-memory WAV source ceiling', () => {
+    const original = (navigator as { deviceMemory?: number }).deviceMemory;
+    Object.defineProperty(navigator, 'deviceMemory', {
+      value: 2,
+      configurable: true,
+    });
+
+    try {
+      const accepted = selectBudget(LOW_MEMORY_BUDGET.maxSourceBytes, 60, 44100, 2, 'wav');
+      const rejected = selectBudget(LOW_MEMORY_BUDGET.maxSourceBytes + 1, 60, 44100, 2, 'wav');
+
+      expect(accepted.reason).toBe('ok');
+      expect(rejected.reason).toBe('too-large');
     } finally {
       Object.defineProperty(navigator, 'deviceMemory', {
         value: original,
