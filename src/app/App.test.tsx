@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 import { App } from './App';
@@ -163,5 +163,153 @@ describe('Switchroom interface', () => {
 
     await user.click(screen.getByRole('button', { name: 'System theme' }));
     expect(window.localStorage.getItem('switchroom.theme')).toBe('system');
+  });
+
+  it('exposes an accessible crossfade control with the documented range', () => {
+    const { engine } = setup();
+    const slider = screen.getByRole('slider', { name: 'Crossfade' });
+
+    expect(slider).toHaveAttribute('min', '80');
+    expect(slider).toHaveAttribute('max', '600');
+    expect(slider).toHaveValue('180');
+    expect(slider).toHaveAttribute('aria-valuetext', '180 milliseconds');
+    expect(screen.getByText('180 ms')).toBeVisible();
+
+    fireEvent.change(slider, { target: { value: '600' } });
+
+    expect(slider).toHaveValue('600');
+    expect(slider).toHaveAttribute('aria-valuetext', '600 milliseconds');
+    expect(screen.getByText('600 ms')).toBeVisible();
+    expect(engine.getSnapshot().crossfadeMs).toBe(600);
+  });
+
+  it('announces starting and switching without claiming the target is audible', async () => {
+    const { host, user } = setup();
+    await chooseFile(user, 'Original', 'original.wav');
+    await chooseFile(user, 'Edited', 'edited.wav');
+
+    host.holdPlay();
+    await user.click(screen.getByRole('button', { name: 'Play' }));
+
+    await waitFor(() => expect(screen.getByText('Starting audio…')).toBeInTheDocument());
+    expect(screen.getByRole('button', { name: 'Pause' })).toHaveTextContent('Starting…');
+
+    host.releasePlay();
+    await waitFor(() => expect(screen.getByText(/Playing Original/)).toBeInTheDocument());
+
+    host.manualTimers = true;
+    host.suppressSeeked = true;
+    host.elements[0]?.advance(0.2);
+
+    await user.click(screen.getByRole('button', { name: 'Edited' }));
+
+    await waitFor(() => expect(screen.getByText('Switching to Edited…')).toBeInTheDocument());
+    expect(document.querySelector('.player__audible')).toHaveTextContent('Audible: Original');
+
+    await act(async () => {
+      host.elements[1]?.dispatchEvent(new Event('seeked'));
+    });
+    act(() => {
+      host.runTimeouts();
+    });
+
+    await waitFor(() => expect(screen.getByText(/Playing Edited/)).toBeInTheDocument());
+    expect(document.querySelector('.player__audible')).toHaveTextContent('Audible: Edited');
+  });
+
+  it('recovers from a context interruption only after an explicit Play', async () => {
+    const { host, user } = setup();
+    await chooseFile(user, 'Original', 'original.wav');
+    await chooseFile(user, 'Edited', 'edited.wav');
+
+    await user.click(screen.getByRole('button', { name: 'Play' }));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Pause' })).toBeInTheDocument());
+
+    act(() => {
+      host.contexts[0]?.setState('suspended');
+    });
+
+    await waitFor(() =>
+      expect(screen.getByText(/browser interrupted audio playback/i)).toBeInTheDocument(),
+    );
+    expect(document.querySelector('.player')).toHaveAttribute('data-status', 'interrupted');
+    expect(screen.getByRole('button', { name: 'Play' })).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Play' }));
+
+    await waitFor(() => expect(screen.getByText(/Playing Original/)).toBeInTheDocument());
+    expect(host.contexts[0]?.state).toBe('running');
+  });
+
+  it('associates file errors with the slot input', async () => {
+    setup();
+    const input = screen.getByLabelText('Choose Original audio file');
+
+    fireEvent.change(input, {
+      target: { files: [new File(['not audio'], 'notes.mp3', { type: 'text/plain' })] },
+    });
+
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent(/doesn't look like an audio file/i);
+    expect(input).toHaveAttribute('aria-invalid', 'true');
+    expect(input).toHaveAttribute('aria-describedby', alert.id);
+    expect(alert.id).toBeTruthy();
+  });
+
+  it('keeps focus in the slot after a file is chosen', async () => {
+    const { user } = setup();
+    const original = slot('Original');
+
+    await user.upload(
+      screen.getByLabelText('Choose Original audio file'),
+      makeWavFile('original.wav'),
+    );
+
+    await waitFor(() => expect(within(original).getByText('original.wav')).toBeInTheDocument());
+    await waitFor(() =>
+      expect(within(original).getByRole('button', { name: 'Replace' })).toHaveFocus(),
+    );
+  });
+
+  it('reports a metadata timeout as a recoverable slot error', async () => {
+    const host = new FakeAudioHost();
+    host.manualTimers = true;
+    host.durationFor = () => 3;
+    host.shouldNeverLoad = () => true;
+    const engine = new ABAudioEngine({ host });
+    const user = userEvent.setup();
+    render(<App engine={engine} />);
+
+    await user.upload(
+      screen.getByLabelText('Choose Original audio file'),
+      makeWavFile('stuck.wav'),
+    );
+
+    act(() => {
+      host.runTimeouts();
+    });
+
+    await waitFor(() =>
+      expect(within(slot('Original')).getByRole('alert')).toHaveTextContent(/took too long/i),
+    );
+    expect(within(slot('Original')).getByText('Needs attention')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Play' })).toBeDisabled();
+  });
+
+  it('changes the crossfade without interrupting playback', async () => {
+    const { engine, user } = setup();
+    await chooseFile(user, 'Original', 'original.wav');
+    await chooseFile(user, 'Edited', 'edited.wav');
+
+    await user.click(screen.getByRole('button', { name: 'Play' }));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Pause' })).toBeInTheDocument());
+
+    const slider = screen.getByRole('slider', { name: 'Crossfade' });
+    fireEvent.change(slider, { target: { value: '400' } });
+
+    expect(screen.getByRole('button', { name: 'Pause' })).toBeInTheDocument();
+    expect(screen.getByText(/Playing Original/)).toBeInTheDocument();
+    expect(engine.getSnapshot().crossfadeMs).toBe(400);
+    expect(engine.getSnapshot().isPlaying).toBe(true);
   });
 });

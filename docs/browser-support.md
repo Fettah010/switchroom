@@ -1,6 +1,6 @@
 # Browser support and verification
 
-Last updated: 2026-11-08.
+Last updated: 2026-11-09.
 
 This page records what was actually tested. It does not label an untested browser, device or codec as supported.
 
@@ -19,41 +19,52 @@ This page records what was actually tested. It does not label an untested browse
 
 Playwright's Chromium and WebKit are test builds, not branded Chrome/Edge or Safari. Results below describe those engine builds on this Windows host.
 
-## Automated end-to-end results
+## Automated end-to-end results (v0.2.0)
 
-`npm run test:e2e` (Chromium gate): **15 passed**.
+`npm run test:e2e` (Chromium gate): **24 passed**.
 
-`npx playwright test --project=firefox --workers=4`: **15 passed**.
+`npx playwright test --project=firefox --workers=4`: **24 passed**.
 
-`npx playwright test --project=webkit --workers=3`: **4 passed, 11 skipped**.
+`npx playwright test --project=webkit --workers=3`: **4 passed, 20 skipped**.
 
-| Area                                                             | Chromium | Firefox | WebKit      |
-| ---------------------------------------------------------------- | -------- | ------- | ----------- |
-| Empty state, privacy statement, disabled transport               | Pass     | Pass    | Pass        |
-| Load two WAV files, metadata and shared duration                 | Pass     | Pass    | Skipped\*   |
-| Play, switch at nonzero time, sampled gain crossfade both ways   | Pass     | Pass    | Skipped\*   |
-| Pause, stop the playhead, seek both decks, resume                | Pass     | Pass    | Skipped\*   |
-| Empty file, unsupported extension, corrupt `.mp3` load           | Pass     | Pass    | Pass        |
-| Duration mismatch, shorter common duration and notice            | Pass     | Pass    | Skipped\*   |
-| Replace while ready, remove while playing, return to incomplete  | Pass     | Pass    | Skipped\*   |
-| End at common duration and replay from zero                      | Pass     | Pass    | Skipped\*   |
-| No uploads, no third-party requests, no storage before theme use | Pass     | Pass    | Skipped\*   |
-| System / Dark / Light, live system changes, reload persistence   | Pass     | Pass    | Pass        |
-| 360 px mobile layout, no horizontal overflow, usable controls    | Pass     | Pass    | Skipped\*   |
-| 1440 px two-column layout                                        | Pass     | Pass    | Pass        |
-| Reduced motion keeps the core workflow usable                    | Pass     | Pass    | Skipped\*   |
-| Keyboard playback, A/B, volume, mute; visible focus              | Pass     | Pass    | Skipped\*   |
-| Skip link and logical tab order                                  | Pass     | Pass    | Skipped\*\* |
+| Area                                                              | Chromium | Firefox | WebKit      |
+| ----------------------------------------------------------------- | -------- | ------- | ----------- |
+| Empty state, privacy statement, disabled transport                | Pass     | Pass    | Pass        |
+| Load two WAV files, metadata and shared duration                  | Pass     | Pass    | Skipped\*   |
+| Play, switch at nonzero time, sampled gain crossfade both ways    | Pass     | Pass    | Skipped\*   |
+| Pause, stop the playhead, seek both decks, resume                 | Pass     | Pass    | Skipped\*   |
+| Empty file, unsupported extension, corrupt `.mp3` load            | Pass     | Pass    | Pass        |
+| Duration mismatch, shorter common duration and notice             | Pass     | Pass    | Skipped\*   |
+| Replace while ready, remove while playing, return to incomplete   | Pass     | Pass    | Skipped\*   |
+| End at common duration and replay from zero                       | Pass     | Pass    | Skipped\*   |
+| No uploads, no third-party requests, no storage before theme use  | Pass     | Pass    | Skipped\*   |
+| Repeated Play clicks during startup produce one start             | Pass     | Pass    | Skipped\*   |
+| Rapid A/B reversal keeps the latest request and valid gains       | Pass     | Pass    | Skipped\*   |
+| Seek while playing keeps both decks converged                     | Pass     | Pass    | Skipped\*   |
+| Pause during a fade settles on the target deck                    | Pass     | Pass    | Skipped\*   |
+| Suspend the AudioContext and recover with an explicit Play        | Pass     | Pass    | Skipped\*   |
+| Supported extension with a generic MIME type                      | Pass     | Pass    | Skipped\*   |
+| Repeated replace/remove cycles leave no stale UI                  | Pass     | Pass    | Skipped\*   |
+| Change the crossfade duration without restarting playback         | Pass     | Pass    | Skipped\*   |
+| System / Dark / Light, live system changes, reload persistence    | Pass     | Pass    | Pass        |
+| 360 px mobile layout, no horizontal overflow, usable controls     | Pass     | Pass    | Skipped\*   |
+| 1440 px two-column layout                                         | Pass     | Pass    | Pass        |
+| Long filenames and errors contained at 360 px                     | Pass     | Pass    | Skipped\*   |
+| Reduced motion keeps the core workflow usable                     | Pass     | Pass    | Skipped\*   |
+| Keyboard playback, A/B, volume, mute and crossfade; visible focus | Pass     | Pass    | Skipped\*   |
+| Skip link and logical tab order                                   | Pass     | Pass    | Skipped\*\* |
 
 \* Playwright WebKit 27.2 on Windows reports WAV support through `canPlayType`, but local media never produces metadata or an error in this environment. The audio-flow specs skip with an explicit message on Windows rather than pretending to pass. Capture and format decoding must be verified in branded Safari.
 
-\*\* This WebKit build omits links from the default Tab order (the Safari "Full Keyboard Access" behaviour). The keyboard spec detects that and skips with a message after verifying focus handling cannot be observed.
+\*\* This WebKit build omits links from the default Tab order (the Safari "Full Keyboard Access" behaviour). The keyboard spec detects that and skips with a message.
 
-Unit/component suite: **76 tests passed** (Vitest).
+Unit/component suite: **116 tests passed** (Vitest, 6 files).
+
+The v0.2.0 production build was deployed to <https://switchroom.ftallfettah.workers.dev> and passed the automated preview/public smoke check on 2026-11-09. That check verifies the production title, privacy statement, absence of the development hook, local WAV loading, duration, playback progress, A/B switching and pause state. It does not replace a human listening pass.
 
 ## Format support
 
-Switchroom accepts `.wav`, `.mp3`, `.flac`, `.aac` and `.m4a` for local playback. Acceptance is not a decode guarantee.
+Switchroom accepts `.wav`, `.mp3`, `.flac`, `.aac` and `.m4a` for local playback. Acceptance is not a decode guarantee. v0.2 also tolerates a blank or generic MIME type when the extension is supported, while still rejecting unsupported extensions.
 
 | Format    | Automated verification                                            | Manual verification            |
 | --------- | ----------------------------------------------------------------- | ------------------------------ |
@@ -67,39 +78,41 @@ The automated suite deliberately generates WAV because it is dependency-free and
 
 ## Manual browser checks
 
-| Browser / device                   | Status     | Notes                                                                              |
-| ---------------------------------- | ---------- | ---------------------------------------------------------------------------------- |
-| Chromium 158 (Playwright), Windows | Automated  | Full workflow, WAV, Web Audio gain automation, keyboard, themes, 360/1440 layouts. |
-| Firefox 159 (Playwright), Windows  | Automated  | Full workflow and WAV playback.                                                    |
-| WebKit 27.2 (Playwright), Windows  | Partial    | UI, validation, themes and layouts pass; local audio decode unavailable.           |
-| Google Chrome desktop (current)    | Not tested | Needs a manual pass.                                                               |
-| Microsoft Edge desktop (current)   | Manual     | Listening pass on the public deployment, Windows 11, WAV; no audible issues.       |
-| Firefox desktop (branded, current) | Not tested | Engine build above is not the branded UI.                                          |
-| Safari macOS (current)             | Not tested | AudioContext gesture activation and codec behaviour need a real check.             |
-| Safari iOS (current)               | Not tested | Touch file selection and audio activation need a real device.                      |
-| Chrome Android (current)           | Not tested | Touch and interruption recovery need a real device.                                |
+| Browser / device                   | Status     | Notes                                                                             |
+| ---------------------------------- | ---------- | --------------------------------------------------------------------------------- |
+| Chromium 158 (Playwright), Windows | Automated  | Full 24-spec workflow, WAV, Web Audio gain automation, keyboard, themes, layouts. |
+| Firefox 159 (Playwright), Windows  | Automated  | Full 24-spec workflow and WAV playback.                                           |
+| WebKit 27.2 (Playwright), Windows  | Partial    | 4 UI/validation/theme/layout specs pass; 20 audio-dependent specs skip.           |
+| Google Chrome desktop (current)    | Not tested | Needs a manual pass.                                                              |
+| Microsoft Edge desktop (current)   | Manual     | v0.1.0 listening pass only, Windows 11, WAV; no audible issues reported then.     |
+| Firefox desktop (branded, current) | Not tested | Engine build above is not the branded UI.                                         |
+| Safari macOS (current)             | Not tested | AudioContext gesture activation and codec behaviour need a real check.            |
+| Safari iOS (current)               | Not tested | Touch file selection and audio activation need a real device.                     |
+| Chrome Android (current)           | Not tested | Touch and interruption recovery need a real device.                               |
 
-## Manual listening checklist
+## Manual listening record
 
-**Status: completed 2026-11-08.** Automated tests prove that gain automation is scheduled, that sampled gains pass through intermediate values, and that the playhead does not reset. They cannot prove that a human hears a pleasant, click-free transition, so this pass was performed by the project owner against the public deployment.
+**Status: no v0.2.0 listening pass has been performed.** The only recorded human listening session is from v0.1.0, before the crossfade duration control and interruption-recovery changes existed. Automated tests prove that gain automation is scheduled, that sampled gains pass through intermediate values, that the playhead is preserved across seek/switch/interruption, and that the crossfade duration affects the scheduled ramp. They cannot prove that a human hears a pleasant, click-free transition at every duration or on every output device.
 
-- [x] Use real speakers or headphones in at least one desktop browser.
-- [x] Load two closely related recordings (ideally a real Original/Edited pair supplied locally; never commit that pair).
-- [x] Start on Original and switch to Edited during continuous playback.
-- [x] Switch back and forth repeatedly.
-- [x] Listen for clicks, pops, gaps, sudden loudness boosts and dropouts.
-- [x] Confirm there is no audible restart or jump in the programme material.
-- [x] Pause during a crossfade, resume, and switch again.
-- [x] Confirm the level stays constant when switching between files with the same signal level.
-- [x] Record the browser, OS, file format and observations here.
+### v0.1.0 record — completed 2026-11-08
 
-**Record:** Microsoft Edge (default browser) on Windows 11 Pro, public deployment at <https://switchroom.ftallfettah.workers.dev>, WAV files. The tester reported no audible clicks, pops, gaps, loudness jumps or dropouts across repeated switches, including pause and resume during a crossfade. The output device was not recorded and the pair's relative levels were not independently measured; the result is a subjective listening check, not a laboratory measurement.
+Microsoft Edge (default browser) on Windows 11 Pro, public deployment at <https://switchroom.ftallfettah.workers.dev>, WAV files. The tester reported no audible clicks, pops, gaps, loudness jumps or dropouts across repeated switches, including pause and resume during a crossfade. The output device was not recorded and the pair's relative levels were not independently measured; the result is a subjective listening check, not a laboratory measurement.
+
+### Outstanding v0.2.0 checklist
+
+- [ ] Listen to the 80 ms, 180 ms and 600 ms settings in a branded desktop browser.
+- [ ] Switch repeatedly in both directions and listen for clicks, pops, gaps or loudness jumps.
+- [ ] Change the duration during a fade and confirm the current fade is not disturbed.
+- [ ] Suspend audio (for example by switching output devices or backgrounding the tab) and confirm the interruption message and explicit Play recovery.
+- [ ] Seek while playing and while paused, then switch, and confirm the programme does not restart.
+- [ ] Repeat with MP3, FLAC, AAC and M4A files.
+- [ ] Record the browser, OS, output device, file formats and observations here.
 
 ## Known browser and platform limitations
 
 - **AAC/M4A:** support depends on the platform codec and the codec inside the container. A successful file selection does not guarantee decoding.
 - **Safari/iOS:** Web Audio must be created or resumed from the Play gesture. The engine is designed for this, but a real device check is outstanding.
-- **Background tabs:** Chrome may throttle media or animation-frame updates in background tabs; continuity after returning to the tab has not been manually checked.
+- **Background tabs:** Chrome may throttle media or animation-frame updates in background tabs. The engine preserves the playhead and republishes it on return, but real background-audio continuity has not been manually checked.
 - **Playwright WebKit on Windows:** no local audio decode in this environment; do not treat skipped audio flows as coverage.
 - **Mobile layout:** 360 px is verified in a desktop browser viewport. Real touch targets, on-screen keyboards and mobile browser chrome are not.
 - **Large files:** only metadata is read before playback, but the browser's decode and memory behaviour for very large files has not been profiled.

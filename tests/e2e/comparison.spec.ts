@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { expect, test } from '@playwright/test';
 import {
   editedInput,
@@ -9,9 +10,11 @@ import {
   playerStatus,
   readDiagnostics,
   readGainSamples,
+  readPlayerSnapshot,
   setSliderValue,
   skipAudioFlowOnWindowsWebkit,
   startGainSampler,
+  suspendAudioContext,
   totalTime,
 } from './helpers';
 
@@ -307,6 +310,275 @@ test.describe('comparison workspace', () => {
     expect(requests.some((url) => requestNamesFile(url))).toBe(false);
 
     // Nothing is written to browser storage until a manual theme choice.
+    expect(await page.evaluate(() => Object.keys(window.localStorage))).toEqual([]);
+  });
+
+  test('E2E-12 repeated Play clicks during startup produce one start', async ({ page }) => {
+    skipAudioFlowOnWindowsWebkit();
+    await page.goto('/');
+    await loadPair(page);
+
+    await page.locator('.play-button').evaluate((button) => {
+      const element = button as HTMLButtonElement;
+      element.click();
+      element.click();
+      element.click();
+    });
+
+    await expect(pauseButton(page)).toBeVisible();
+    await expect
+      .poll(async () => (await readDiagnostics(page)).original.currentTime, { timeout: 5_000 })
+      .toBeGreaterThan(0.2);
+
+    const diagnostics = await readDiagnostics(page);
+    expect(diagnostics.original.playAttempts).toBe(1);
+    expect(diagnostics.edited.playAttempts).toBe(1);
+    expect(diagnostics.original.paused).toBe(false);
+    expect(diagnostics.edited.paused).toBe(false);
+  });
+
+  test('E2E-16 rapid A/B reversal keeps the latest request and valid gains', async ({ page }) => {
+    skipAudioFlowOnWindowsWebkit();
+    await page.goto('/');
+    await loadPair(page);
+    await playButton(page).click();
+    await expect
+      .poll(async () => (await readDiagnostics(page)).original.currentTime, { timeout: 5_000 })
+      .toBeGreaterThan(0.4);
+
+    await page.evaluate(async () => {
+      const engine = window.__switchroom?.engine;
+
+      if (!engine) {
+        throw new Error('The Switchroom development test hook is not available.');
+      }
+
+      const first = engine.switchTo('edited');
+      const second = engine.switchTo('original');
+      const third = engine.switchTo('edited');
+      await Promise.all([first, second, third]);
+    });
+
+    const editedTab = page.getByRole('button', { name: 'Edited', exact: true });
+    await expect(editedTab).toHaveAttribute('aria-pressed', 'true');
+    await expect(playerStatus(page)).toHaveText('Playing Edited. Switch versions at any time.');
+
+    const diagnostics = await readDiagnostics(page);
+    expect(diagnostics.original.gain).toBeGreaterThanOrEqual(0);
+    expect(diagnostics.original.gain).toBeLessThanOrEqual(1);
+    expect(diagnostics.edited.gain).toBeGreaterThanOrEqual(0);
+    expect(diagnostics.edited.gain).toBeLessThanOrEqual(1);
+    expect(diagnostics.edited.gain).toBeGreaterThan(0.95);
+    expect(diagnostics.original.gain).toBeLessThan(0.05);
+    expect(
+      Math.abs(diagnostics.edited.currentTime - diagnostics.original.currentTime),
+    ).toBeLessThan(0.12);
+
+    await expect
+      .poll(async () => (await readDiagnostics(page)).edited.currentTime, { timeout: 5_000 })
+      .toBeGreaterThan(diagnostics.edited.currentTime);
+  });
+
+  test('E2E-17 seeks while playing and keeps both decks converged', async ({ page }) => {
+    skipAudioFlowOnWindowsWebkit();
+    await page.goto('/');
+    await loadPair(page);
+    await playButton(page).click();
+    await expect
+      .poll(async () => (await readDiagnostics(page)).original.currentTime, { timeout: 5_000 })
+      .toBeGreaterThan(0.4);
+
+    await setSliderValue(page, 'Playback position', 1);
+
+    await expect
+      .poll(async () => (await readDiagnostics(page)).original.currentTime, { timeout: 5_000 })
+      .toBeCloseTo(1, 1);
+    await expect
+      .poll(async () => (await readDiagnostics(page)).edited.currentTime, { timeout: 5_000 })
+      .toBeCloseTo(1, 1);
+    await expect(page.getByLabel('Elapsed time')).toHaveText('0:01');
+    await expect(pauseButton(page)).toBeVisible();
+    await expect(playerStatus(page)).toHaveText('Playing Original. Switch versions at any time.');
+
+    await expect
+      .poll(async () => (await readDiagnostics(page)).original.currentTime, { timeout: 5_000 })
+      .toBeGreaterThan(1.05);
+
+    await page.getByRole('button', { name: 'Edited', exact: true }).click();
+    await expect(playerStatus(page)).toHaveText('Playing Edited. Switch versions at any time.');
+
+    const afterSwitch = await readDiagnostics(page);
+    expect(
+      Math.abs(afterSwitch.edited.currentTime - afterSwitch.original.currentTime),
+    ).toBeLessThan(0.12);
+  });
+
+  test('E2E-18 pausing during a fade settles on the target deck', async ({ page }) => {
+    skipAudioFlowOnWindowsWebkit();
+    await page.goto('/');
+    await loadPair(page);
+    await playButton(page).click();
+    await expect
+      .poll(async () => (await readDiagnostics(page)).original.currentTime, { timeout: 5_000 })
+      .toBeGreaterThan(0.4);
+
+    await page.evaluate(async () => {
+      const engine = window.__switchroom?.engine;
+
+      if (!engine) {
+        throw new Error('The Switchroom development test hook is not available.');
+      }
+
+      const switching = engine.switchTo('edited');
+      const started = performance.now();
+
+      while (performance.now() - started < 1_000) {
+        const snapshot = engine.getSnapshot();
+
+        if (snapshot.switchingTo === 'edited' && snapshot.audibleVersion === 'edited') {
+          break;
+        }
+
+        await new Promise((resolve) => setTimeout(resolve, 5));
+      }
+
+      engine.pause();
+      await switching;
+    });
+
+    await expect(playerStatus(page)).toHaveText('Paused on Edited.');
+
+    const diagnostics = await readDiagnostics(page);
+    expect(diagnostics.original.paused).toBe(true);
+    expect(diagnostics.edited.paused).toBe(true);
+    expect(diagnostics.original.gain).toBeLessThan(0.05);
+    expect(diagnostics.edited.gain).toBeGreaterThan(0.95);
+    expect(
+      Math.abs(diagnostics.edited.currentTime - diagnostics.original.currentTime),
+    ).toBeLessThan(0.12);
+
+    const snapshot = await readPlayerSnapshot(page);
+    expect(snapshot.status).toBe('paused');
+    expect(snapshot.switchingTo).toBeNull();
+    expect(snapshot.audibleVersion).toBe('edited');
+  });
+
+  test('E2E-19 suspends the audio context and recovers with an explicit Play', async ({ page }) => {
+    skipAudioFlowOnWindowsWebkit();
+    await page.goto('/');
+    await loadPair(page);
+    await playButton(page).click();
+    await expect
+      .poll(async () => (await readDiagnostics(page)).original.currentTime, { timeout: 5_000 })
+      .toBeGreaterThan(0.4);
+
+    await suspendAudioContext(page);
+
+    await expect(playerStatus(page)).toHaveText(
+      'Your browser interrupted audio playback. Press Play to continue.',
+    );
+    await expect(playButton(page)).toBeVisible();
+
+    const interrupted = await readPlayerSnapshot(page);
+    expect(interrupted.status).toBe('interrupted');
+    expect(interrupted.isPlaying).toBe(false);
+    expect(interrupted.interrupted).toBe(true);
+    expect(interrupted.currentTime).toBeGreaterThan(0);
+
+    await playButton(page).click();
+    await expect(pauseButton(page)).toBeVisible();
+    await expect(playerStatus(page)).toHaveText('Playing Original. Switch versions at any time.');
+    await expect
+      .poll(async () => (await readDiagnostics(page)).original.currentTime, { timeout: 5_000 })
+      .toBeGreaterThan(interrupted.currentTime);
+  });
+
+  test('E2E-22 accepts a supported extension with a generic MIME type', async ({ page }) => {
+    skipAudioFlowOnWindowsWebkit();
+    await page.goto('/');
+
+    const wav = readFileSync(fixturePath('original.wav'));
+
+    await originalInput(page).setInputFiles({
+      name: 'generic-original.wav',
+      mimeType: 'application/octet-stream',
+      buffer: wav,
+    });
+    await editedInput(page).setInputFiles(fixturePath('edited.wav'));
+
+    await expect(page.locator('.slot--original .slot__status')).toHaveText('Ready');
+    await expect(page.locator('.slot--original .file-head__name')).toHaveText(
+      'generic-original.wav',
+    );
+    await expect(playButton(page)).toBeEnabled();
+    await expect(page.locator('.slot--original .slot__error')).toHaveCount(0);
+  });
+
+  test('E2E-23 repeated replace and remove cycles leave no stale UI', async ({ page }) => {
+    skipAudioFlowOnWindowsWebkit();
+    await page.goto('/');
+    await loadPair(page);
+
+    const wav = readFileSync(fixturePath('original.wav'));
+
+    for (let index = 0; index < 3; index += 1) {
+      await originalInput(page).setInputFiles({
+        name: `cycle-${index}.wav`,
+        mimeType: 'audio/wav',
+        buffer: wav,
+      });
+      await expect(page.locator('.slot--original .file-head__name')).toHaveText(
+        `cycle-${index}.wav`,
+      );
+      await expect(page.locator('.slot--original .slot__status')).toHaveText('Ready');
+      await expect(playButton(page)).toBeEnabled();
+
+      await page.locator('.slot--original').getByRole('button', { name: 'Remove' }).click();
+      await expect(page.locator('.slot--original .dropzone')).toBeVisible();
+      await expect(page.locator('.slot--original .slot__status')).toHaveText('Waiting');
+      await expect(playButton(page)).toBeDisabled();
+    }
+
+    await originalInput(page).setInputFiles(fixturePath('original.wav'));
+    await expect(page.locator('.slot--original .file-head__name')).toHaveText('original.wav');
+    await expect(page.locator('.slot--original .slot__status')).toHaveText('Ready');
+    await expect(playerStatus(page)).toHaveText('Both files are ready. Press Play to begin.');
+  });
+
+  test('E2E-24 changes the transition duration without restarting playback', async ({ page }) => {
+    skipAudioFlowOnWindowsWebkit();
+    await page.goto('/');
+    await loadPair(page);
+    await playButton(page).click();
+    await expect
+      .poll(async () => (await readDiagnostics(page)).original.currentTime, { timeout: 5_000 })
+      .toBeGreaterThan(0.3);
+
+    const slider = page.getByRole('slider', { name: 'Crossfade' });
+    await expect(slider).toHaveValue('180');
+    await expect(slider).toHaveAttribute('aria-valuetext', '180 milliseconds');
+    await expect(page.locator('.transition__value')).toHaveText('180 ms');
+
+    const before = await readDiagnostics(page);
+
+    await setSliderValue(page, 'Crossfade', 600);
+    await expect(slider).toHaveValue('600');
+    await expect(slider).toHaveAttribute('aria-valuetext', '600 milliseconds');
+    await expect(page.locator('.transition__value')).toHaveText('600 ms');
+
+    await setSliderValue(page, 'Crossfade', 40);
+    await expect(slider).toHaveValue('80');
+    await expect(page.locator('.transition__value')).toHaveText('80 ms');
+
+    await setSliderValue(page, 'Crossfade', 900);
+    await expect(slider).toHaveValue('600');
+    await expect(page.locator('.transition__value')).toHaveText('600 ms');
+
+    await expect(pauseButton(page)).toBeVisible();
+    await expect(playerStatus(page)).toHaveText('Playing Original. Switch versions at any time.');
+    await expect
+      .poll(async () => (await readDiagnostics(page)).original.currentTime, { timeout: 5_000 })
+      .toBeGreaterThan(before.original.currentTime);
     expect(await page.evaluate(() => Object.keys(window.localStorage))).toEqual([]);
   });
 });

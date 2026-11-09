@@ -110,6 +110,13 @@ test.describe('keyboard access', () => {
     await page.keyboard.press('ArrowLeft');
     await expect(page.locator('.volume__value')).toHaveText('99%');
 
+    const crossfadeSlider = page.getByRole('slider', { name: 'Crossfade' });
+    await crossfadeSlider.focus();
+    await expect(crossfadeSlider).toBeFocused();
+    await page.keyboard.press('ArrowRight');
+    await expect(page.locator('.transition__value')).toHaveText('200 ms');
+    await expect(crossfadeSlider).toHaveAttribute('aria-valuetext', '200 milliseconds');
+
     await page.getByRole('button', { name: 'Mute' }).focus();
     await page.keyboard.press('Enter');
     await expect(page.getByRole('button', { name: 'Unmute' })).toHaveAttribute(

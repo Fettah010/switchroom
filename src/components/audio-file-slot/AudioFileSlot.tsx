@@ -1,4 +1,4 @@
-import { useRef, useState, type DragEvent } from 'react';
+import { useEffect, useRef, useState, type DragEvent } from 'react';
 import { AlertTriangle, Check, FileAudio, LoaderCircle, Upload, X } from 'lucide-react';
 import type { AudioVersion } from '../../audio/audioTypes';
 import { formatFileSize, ACCEPT_ATTRIBUTE } from '../../audio/fileValidation';
@@ -28,12 +28,33 @@ export function AudioFileSlot({ version }: { version: AudioVersion }) {
   const info = snapshot[version];
   const copy = SLOT_COPY[version];
   const inputRef = useRef<HTMLInputElement>(null);
+  const replaceRef = useRef<HTMLButtonElement>(null);
+  const hadFile = useRef(Boolean(info.fileName));
   const dragDepth = useRef(0);
   const [isDragging, setIsDragging] = useState(false);
   const [selectionError, setSelectionError] = useState<string | null>(null);
 
   const inputId = `audio-file-${version}`;
+  const errorId = `audio-file-${version}-error`;
+  const statusId = `audio-file-${version}-status`;
   const errorMessage = selectionError ?? info.error;
+
+  // Choosing a file replaces the drop zone with the file summary. Move focus
+  // to the first stable action in the new view so keyboard users are not
+  // dropped back to the document body.
+  useEffect(() => {
+    const hasFile = Boolean(info.fileName);
+
+    if (!hadFile.current && hasFile) {
+      // Defer past the file input's own focus handling, then land on the
+      // first stable action in the replacement view.
+      const handle = window.setTimeout(() => replaceRef.current?.focus(), 0);
+      hadFile.current = hasFile;
+      return () => window.clearTimeout(handle);
+    }
+
+    hadFile.current = hasFile;
+  }, [info.fileName]);
 
   function chooseFiles(files: FileList | null): void {
     if (!files || files.length === 0) {
@@ -95,6 +116,7 @@ export function AudioFileSlot({ version }: { version: AudioVersion }) {
     <article
       className={`slot slot--${version}${isDragging ? ' slot--dragging' : ''}`}
       aria-labelledby={`slot-${version}-title`}
+      aria-busy={info.loading}
       onDragEnter={handleDragEnter}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
@@ -120,6 +142,7 @@ export function AudioFileSlot({ version }: { version: AudioVersion }) {
                   ? ' slot__status--ready'
                   : ''
           }`}
+          id={statusId}
         >
           <span className="slot__status-dot" aria-hidden="true" />
           {errorMessage
@@ -140,6 +163,8 @@ export function AudioFileSlot({ version }: { version: AudioVersion }) {
         accept={ACCEPT_ATTRIBUTE}
         tabIndex={-1}
         aria-label={`Choose ${copy.title} audio file`}
+        aria-invalid={errorMessage ? true : undefined}
+        aria-describedby={errorMessage ? errorId : statusId}
         onChange={(event) => {
           chooseFiles(event.target.files);
           event.target.value = '';
@@ -147,7 +172,12 @@ export function AudioFileSlot({ version }: { version: AudioVersion }) {
       />
 
       {!info.fileName ? (
-        <button type="button" className="dropzone" onClick={openPicker}>
+        <button
+          type="button"
+          className="dropzone"
+          aria-describedby={errorMessage ? errorId : undefined}
+          onClick={openPicker}
+        >
           <span className="dropzone__icon" aria-hidden="true">
             <Upload size={17} strokeWidth={1.75} />
           </span>
@@ -184,12 +214,12 @@ export function AudioFileSlot({ version }: { version: AudioVersion }) {
           {info.loading && (
             <p className="slot__loading" role="status">
               <LoaderCircle size={14} className="spin" aria-hidden="true" />
-              Reading audio metadata…
+              Reading audio metadata. Large local files can take a moment.
             </p>
           )}
 
           {errorMessage && (
-            <p className="slot__error" role="alert">
+            <p className="slot__error" id={errorId} role="alert">
               <AlertTriangle size={14} aria-hidden="true" />
               {errorMessage}
             </p>
@@ -210,7 +240,13 @@ export function AudioFileSlot({ version }: { version: AudioVersion }) {
           )}
 
           <div className="slot__actions">
-            <button type="button" className="text-button" onClick={openPicker}>
+            <button
+              ref={replaceRef}
+              type="button"
+              className="text-button"
+              aria-describedby={errorMessage ? errorId : undefined}
+              onClick={openPicker}
+            >
               Replace
             </button>
             <button type="button" className="text-button text-button--quiet" onClick={handleRemove}>
@@ -222,7 +258,7 @@ export function AudioFileSlot({ version }: { version: AudioVersion }) {
       )}
 
       {!info.fileName && errorMessage && (
-        <p className="slot__error" role="alert">
+        <p className="slot__error" id={errorId} role="alert">
           <AlertTriangle size={14} aria-hidden="true" />
           {errorMessage}
         </p>

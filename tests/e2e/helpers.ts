@@ -6,6 +6,7 @@ export interface DeckDiagnostics {
   paused: boolean;
   gain: number;
   ready: boolean;
+  playAttempts: number;
 }
 
 export interface DeckDiagnosticsMap {
@@ -85,6 +86,57 @@ export async function readDiagnostics(page: Page): Promise<DeckDiagnosticsMap> {
     }
 
     return engine.getDeckDiagnostics();
+  });
+}
+
+export interface PlayerSnapshotView {
+  status: string;
+  activeVersion: 'original' | 'edited';
+  audibleVersion: 'original' | 'edited';
+  switchingTo: 'original' | 'edited' | null;
+  isPlaying: boolean;
+  interrupted: boolean;
+  currentTime: number;
+  crossfadeMs: number;
+}
+
+/** Reads the serialisable subset of the engine snapshot used by E2E assertions. */
+export async function readPlayerSnapshot(page: Page): Promise<PlayerSnapshotView> {
+  return page.evaluate(() => {
+    const engine = window.__switchroom?.engine;
+
+    if (!engine) {
+      throw new Error('The Switchroom development test hook is not available.');
+    }
+
+    const snapshot = engine.getSnapshot();
+
+    return {
+      status: snapshot.status,
+      activeVersion: snapshot.activeVersion,
+      audibleVersion: snapshot.audibleVersion,
+      switchingTo: snapshot.switchingTo,
+      isPlaying: snapshot.isPlaying,
+      interrupted: snapshot.interrupted,
+      currentTime: snapshot.currentTime,
+      crossfadeMs: snapshot.crossfadeMs,
+    };
+  });
+}
+
+/**
+ * Suspends the live AudioContext through the browser's own API, producing the
+ * same `statechange` signal a device interruption would.
+ */
+export async function suspendAudioContext(page: Page): Promise<void> {
+  await page.evaluate(async () => {
+    const context = window.__switchroom?.getContext() as unknown as AudioContext | null;
+
+    if (!context) {
+      throw new Error('No AudioContext has been created yet.');
+    }
+
+    await context.suspend();
   });
 }
 

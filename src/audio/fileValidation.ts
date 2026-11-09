@@ -18,6 +18,16 @@ const SUPPORTED_SET = new Set<string>(SUPPORTED_EXTENSIONS);
 
 const AUDIO_MIME_PREFIX = 'audio/';
 
+/** Container types browsers sometimes report for an M4A file. */
+const ACCEPTED_CONTAINER_MIMES = new Set(['video/mp4', 'application/mp4']);
+
+/**
+ * Generic/unknown MIME values are advisory only. Some operating systems and
+ * browsers report `application/octet-stream` or a blank type for perfectly
+ * valid local audio, so these must never reject a supported extension.
+ */
+const GENERIC_MIMES = new Set(['application/octet-stream', 'binary/octet-stream']);
+
 export function getFileExtension(fileName: string): string | null {
   const trimmed = fileName.trim();
   const dot = trimmed.lastIndexOf('.');
@@ -31,6 +41,26 @@ export function getFileExtension(fileName: string): string | null {
 
 export function isSupportedExtension(extension: string | null): extension is SupportedExtension {
   return extension !== null && SUPPORTED_SET.has(extension);
+}
+
+/**
+ * A MIME family is only a hint. We reject values that clearly describe
+ * non-audio content (text, images, video other than MP4 containers) and accept
+ * blank, audio, MP4 and generic binary types. The real test is whether the
+ * browser decodes the file.
+ */
+export function isAcceptableMime(mime: string): boolean {
+  const normalized = mime.trim().toLowerCase();
+
+  if (!normalized) {
+    return true;
+  }
+
+  if (normalized.startsWith(AUDIO_MIME_PREFIX)) {
+    return true;
+  }
+
+  return ACCEPTED_CONTAINER_MIMES.has(normalized) || GENERIC_MIMES.has(normalized);
 }
 
 export type FileValidationResult = { ok: true; file: File } | { ok: false; message: string };
@@ -57,12 +87,7 @@ export function validateAudioFile(file: File): FileValidationResult {
     };
   }
 
-  const mime = file.type.trim().toLowerCase();
-
-  // File.type is frequently blank, and some browsers report container types
-  // such as video/mp4 for M4A. Only reject a MIME family that clearly cannot
-  // be audio; never reject a supported extension solely for a missing type.
-  if (mime && !mime.startsWith(AUDIO_MIME_PREFIX) && mime !== 'video/mp4') {
+  if (!isAcceptableMime(file.type)) {
     return {
       ok: false,
       message: "This doesn't look like an audio file. Try a WAV, MP3, FLAC, AAC or M4A export.",

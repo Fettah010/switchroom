@@ -47,5 +47,13 @@ export function createBrowserAudioHost(): AudioHost {
     cancelFrame(handle: number): void {
       window.cancelAnimationFrame(handle);
     },
+
+    setTimeout(callback: () => void, milliseconds: number): number {
+      return window.setTimeout(callback, milliseconds);
+    },
+
+    clearTimeout(handle: number): void {
+      window.clearTimeout(handle);
+    },
   };
 }

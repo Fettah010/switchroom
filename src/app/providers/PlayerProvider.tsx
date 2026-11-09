@@ -17,7 +17,7 @@ export function PlayerProvider({
 
   useEffect(() => {
     if (import.meta.env.DEV) {
-      window.__switchroom = { engine };
+      window.__switchroom = { engine, getContext: () => engine.getAudioContext() };
     }
 
     return () => {

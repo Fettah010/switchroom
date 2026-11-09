@@ -1,6 +1,6 @@
 # Switchroom
 
-**Hear the difference.** Switchroom is a local-first A/B audio player for comparing two versions of the same recording on one synchronized timeline. Load an Original and an Edited file, press Play, and switch between them mid-play through a real 180 ms Web Audio crossfade.
+**Hear the difference.** Switchroom is a local-first A/B audio player for comparing two versions of the same recording on one synchronized timeline. Load an Original and an Edited file, press Play, and switch between them mid-play through a real Web Audio crossfade, adjustable from 80 to 600 ms (180 ms by default).
 
 **Live:** <https://switchroom.ftallfettah.workers.dev>
 
@@ -10,19 +10,21 @@ Your audio never leaves the browser. There is no account, no upload, no backend 
 
 ## Project status
 
-v0.1.0 is publicly deployed at <https://switchroom.ftallfettah.workers.dev> and the automated suite passes. The manual listening pass was completed in Microsoft Edge on Windows 11 using WAV files; no clicks, pops, gaps, loudness jumps or dropouts were reported. Branded Safari, Chrome Android, Safari iOS and codecs other than WAV remain manually unverified. See [Browser support](docs/browser-support.md) for the exact matrix and release record.
+v0.2.0 is publicly deployed at <https://switchroom.ftallfettah.workers.dev> and smoke-tested against that URL on 2026-11-09. The automated suite passes in Chromium and Firefox, and the production build is verified through the Workers runtime. The only human listening pass on record is the v0.1.0 session in Microsoft Edge on Windows 11 with WAV files; the v0.2.0 crossfade range and interruption recovery have not yet been listened to by a human. Branded Safari, Chrome Android, Safari iOS and codecs other than WAV remain manually unverified. See [Browser support](docs/browser-support.md) for the exact matrix and release record.
 
-## What v0.1 does
+## What v0.2 does
 
 - Two independent local file slots: **Original (A)** and **Edited (B)**.
 - WAV, MP3, FLAC, AAC and M4A files are accepted for local playback, subject to the browser's codecs.
 - Shows file name, size, format and duration for each slot.
-- One shared play/pause transport and one shared timeline that seeks both decks together.
+- One shared play/pause transport and one shared timeline that seeks both decks together, including while playing.
 - Audible **Original / Edited** switching while playback continues at the same point.
-- A real 180 ms linear-amplitude Web Audio gain crossfade, not a visual-only toggle.
+- A real linear-amplitude Web Audio gain crossfade, not a visual-only toggle, with an adjustable 80–600 ms duration (180 ms by default).
+- Truthful **starting**, **switching** and **interrupted** states: the interface never claims a target is audible before its fade begins, and it distinguishes a device interruption from a normal pause.
+- Repeatable A/B switching in both directions, including rapid reversals, seeks during a switch and pause/resume during a fade.
 - Master volume and mute, independent of the selected version.
 - When the files differ in length, the common (shorter) duration is used and an explanatory note appears.
-- End-of-playback, replay, replace, remove and load-error states.
+- End-of-playback, replay, replace, remove, bounded metadata loading and load-error states.
 - System / Dark / Light themes, with the manual choice remembered across reloads.
 - Responsive layouts from 360 px to 1440 px, keyboard-operable controls, visible focus and reduced-motion support.
 - No waveforms, share links, accounts, comments or future-milestone placeholders.
@@ -50,9 +52,9 @@ Switchroom accepts `.wav`, `.mp3`, `.flac`, `.aac` and `.m4a` files. The extensi
 
 ## Browser support
 
-Automated end-to-end checks pass in Playwright Chromium 158 and Firefox 159 on Windows 11, including file loading, playhead sync, A/B switching, gain automation, seeking, replace/remove, themes, keyboard access and reduced motion. Playwright WebKit 27.2 passes the UI and validation checks on Windows, but that build does not decode local audio in this environment, so its audio flows are skipped there.
+The 24-spec Playwright suite passes in full in Chromium 158 and Firefox 159 on Windows 11, covering file loading, playhead sync, A/B switching, gain automation, seeking while paused and playing, startup cancellation, rapid reversals, fade interruption, context interruption recovery, replace/remove cycles, crossfade duration changes, themes, keyboard access and reduced motion. Playwright WebKit 27.2 passes 4 UI/validation specs and skips 20 audio-dependent specs on Windows because that build does not decode local audio in this environment.
 
-Microsoft Edge on Windows 11 was used for the manual listening pass against the public deployment with WAV files. Branded Chrome, branded Safari, Chrome Android and Safari iOS have **not** been manually verified for this release. Playwright WebKit is not identical to branded Safari. See [docs/browser-support.md](docs/browser-support.md) for the exact matrix, limitations and the listening record.
+Microsoft Edge on Windows 11 was used for the v0.1.0 manual listening pass against the public deployment with WAV files. Branded Chrome, branded Safari, Chrome Android and Safari iOS have **not** been manually verified, and no v0.2.0 human listening pass has been recorded. Playwright WebKit is not identical to branded Safari. See [docs/browser-support.md](docs/browser-support.md) for the exact matrix, limitations and the listening record.
 
 ## Prerequisites
 
@@ -66,7 +68,7 @@ npm ci
 npm run dev
 ```
 
-Vite prints the local URL (usually `http://localhost:5173`). The development server exposes `window.__switchroom.engine` for automated diagnostics; production builds do not.
+Vite prints the local URL (usually `http://localhost:5173`). The development server exposes `window.__switchroom` (`{ engine, getContext }`) for automated diagnostics; production builds do not.
 
 ### Build and preview the production bundle
 
@@ -107,6 +109,8 @@ npm run test:e2e:all   # Playwright, Chromium + Firefox + WebKit
 npm run test:e2e:ui    # Playwright UI mode
 ```
 
+The v0.2.0 source tree passes 116 Vitest tests, 24 Chromium Playwright specs and 24 Firefox specs. WebKit reports 4 passed and 20 skipped on Windows for the environment reason above.
+
 The Playwright suite generates its own deterministic WAV and failure fixtures in `tests/e2e/fixtures/` before each run; that folder is ignored by git. Regenerate them manually with `npm run fixtures`.
 
 First-time Playwright setup:
@@ -135,7 +139,7 @@ npx wrangler login   # one-time, browser-based authentication
 npm run deploy
 ```
 
-The deploy command builds and uploads the static assets to Cloudflare Workers. The current v0.1.0 deployment is <https://switchroom.ftallfettah.workers.dev>; Wrangler also prints the URL and the Cloudflare dashboard records it. Full instructions, including CI secret setup and post-deploy checks, are in [docs/deployment.md](docs/deployment.md).
+The deploy command builds and uploads the static assets to Cloudflare Workers. The current v0.2.0 deployment is <https://switchroom.ftallfettah.workers.dev>; Wrangler also prints the URL and the Cloudflare dashboard records it. Full instructions, including CI secret setup and post-deploy checks, are in [docs/deployment.md](docs/deployment.md).
 
 Never commit a Cloudflare token, `.env` file or any other credential.
 
@@ -166,12 +170,12 @@ docs/             Engine, decisions, development, deployment and support docs
 ## Known limitations
 
 - The two files do not need to be the same length, but comparison stops at the shorter duration. There is no silence padding.
-- The crossfade is a fixed 180 ms linear-amplitude fade. If the two files have very different loudness, the transition will reflect that difference; Switchroom does not normalize loudness.
+- The crossfade is a linear-amplitude fade from 80 to 600 ms. Changing the duration affects the next switch, not a fade already in progress. The setting is session-only and resets to 180 ms on reload. If the two files have very different loudness, the transition will reflect that difference; Switchroom does not normalize loudness.
 - Codec support is the browser's, not Switchroom's. AAC/M4A is the most variable.
-- v0.1 intentionally has no waveforms, persistent file library, sharing, accounts, analytics or server processing.
+- v0.2 intentionally has no waveforms, persistent file library, sharing, accounts, analytics or server processing.
 - There are no global keyboard shortcuts. All controls are reachable with Tab and operable with standard keys, without stealing focus from browser or assistive-technology commands.
 - Automated browser coverage is desktop Chromium, Firefox and WebKit on Windows. Real mobile touch behaviour and branded Safari have not been verified.
-- The manual listening pass covered WAV files in Microsoft Edge on Windows 11. MP3, FLAC, AAC and M4A decode and listening behaviour, mobile touch, and Safari audio activation still need manual checks. Automated tests prove gain scheduling, playhead continuity and state transitions; they cannot prove that a transition sounds pleasant in every browser.
+- The only manual listening pass covered WAV files in Microsoft Edge on Windows 11 for v0.1.0. The new 80–600 ms range, interruption recovery and v0.2.0 build have not been listened to by a human. MP3, FLAC, AAC and M4A decode and listening behaviour, mobile touch, and Safari audio activation still need manual checks. Automated tests prove gain scheduling, playhead continuity and state transitions; they cannot prove that a transition sounds pleasant in every browser.
 
 ## License
 

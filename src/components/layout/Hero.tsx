@@ -90,7 +90,8 @@ export function Hero() {
         </p>
 
         <ul className="hero__facts" aria-label="Product facts">
-          <li>180 ms linear crossfade</li>
+          <li>180 ms default crossfade</li>
+          <li>80–600 ms transition</li>
           <li>Files stay on this device</li>
           <li>No account</li>
         </ul>

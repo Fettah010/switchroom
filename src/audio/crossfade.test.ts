@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import {
+  DEFAULT_CROSSFADE_MS,
+  MAX_CROSSFADE_MS,
+  MIN_CROSSFADE_MS,
   applyGainHold,
   applyGainRamp,
+  clampCrossfadeMs,
   clampGain,
   createGainRamp,
   crossfadeTargets,
@@ -9,6 +13,24 @@ import {
   planCrossfade,
 } from './crossfade';
 import { FakeAudioParam } from '../test/fakeAudioHost';
+
+describe('clampCrossfadeMs', () => {
+  it('defaults to 180 ms and clamps to the supported range', () => {
+    expect(DEFAULT_CROSSFADE_MS).toBe(180);
+    expect(MIN_CROSSFADE_MS).toBe(80);
+    expect(MAX_CROSSFADE_MS).toBe(600);
+    expect(clampCrossfadeMs(180)).toBe(180);
+    expect(clampCrossfadeMs(0)).toBe(80);
+    expect(clampCrossfadeMs(79)).toBe(80);
+    expect(clampCrossfadeMs(601)).toBe(600);
+    expect(clampCrossfadeMs(Number.POSITIVE_INFINITY)).toBe(180);
+    expect(clampCrossfadeMs(Number.NaN)).toBe(180);
+  });
+
+  it('rounds fractional values to whole milliseconds', () => {
+    expect(clampCrossfadeMs(199.6)).toBe(200);
+  });
+});
 
 describe('clampGain', () => {
   it('clamps and sanitises gain values', () => {

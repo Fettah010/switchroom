@@ -1,5 +1,14 @@
+import { readFileSync } from 'node:fs';
 import { expect, test } from '@playwright/test';
-import { loadPair, playButton, readDiagnostics, skipAudioFlowOnWindowsWebkit } from './helpers';
+import {
+  editedInput,
+  fixturePath,
+  loadPair,
+  originalInput,
+  playButton,
+  readDiagnostics,
+  skipAudioFlowOnWindowsWebkit,
+} from './helpers';
 
 test.use({ colorScheme: 'light' });
 
@@ -74,6 +83,8 @@ test.describe('theme and responsive layout', () => {
     await expect(page.getByRole('button', { name: 'Edited', exact: true })).toBeVisible();
     await expect(page.getByRole('slider', { name: 'Playback position' })).toBeVisible();
     await expect(page.getByRole('slider', { name: 'Master volume' })).toBeVisible();
+    await expect(page.getByRole('slider', { name: 'Crossfade' })).toBeVisible();
+    await expect(page.locator('.transition__value')).toHaveText('180 ms');
     await expect(page.getByRole('button', { name: 'System theme' })).toBeVisible();
 
     await playButton(page).click();
@@ -112,5 +123,57 @@ test.describe('theme and responsive layout', () => {
       viewport: window.innerWidth,
     }));
     expect(overflow.document).toBeLessThanOrEqual(overflow.viewport + 1);
+  });
+
+  test('E2E-26 long filenames and errors stay contained at 360 px', async ({ page }) => {
+    skipAudioFlowOnWindowsWebkit();
+    await page.setViewportSize({ width: 360, height: 800 });
+    await page.goto('/');
+
+    const longName = `${'very-long-original-recording-name-'.repeat(4)}.wav`;
+    const wav = readFileSync(fixturePath('original.wav'));
+
+    await originalInput(page).setInputFiles({
+      name: longName,
+      mimeType: 'audio/wav',
+      buffer: wav,
+    });
+    await editedInput(page).setInputFiles(fixturePath('edited.wav'));
+
+    await expect(playButton(page)).toBeEnabled();
+    await expect(page.locator('.slot--original .file-head__name')).toHaveText(longName);
+
+    const loadedOverflow = await page.evaluate(() => ({
+      document: document.documentElement.scrollWidth,
+      viewport: window.innerWidth,
+    }));
+    expect(loadedOverflow.document).toBeLessThanOrEqual(loadedOverflow.viewport + 1);
+
+    await expect(
+      page.locator('.slot--original').getByRole('button', { name: 'Replace' }),
+    ).toBeVisible();
+    await expect(
+      page.locator('.slot--original').getByRole('button', { name: 'Remove' }),
+    ).toBeVisible();
+    await expect(page.getByRole('slider', { name: 'Crossfade' })).toBeVisible();
+
+    await originalInput(page).setInputFiles({
+      name: `${'broken-export-'.repeat(10)}.mp3`,
+      mimeType: 'audio/mpeg',
+      buffer: Buffer.from('this is not playable audio'),
+    });
+
+    await expect(page.locator('.slot--original .slot__error')).toBeVisible();
+    await expect(page.locator('.slot--original .slot__status')).toHaveText('Needs attention');
+
+    const errorOverflow = await page.evaluate(() => ({
+      document: document.documentElement.scrollWidth,
+      viewport: window.innerWidth,
+    }));
+    expect(errorOverflow.document).toBeLessThanOrEqual(errorOverflow.viewport + 1);
+
+    await expect(
+      page.locator('.slot--original').getByRole('button', { name: 'Remove' }),
+    ).toBeVisible();
   });
 });

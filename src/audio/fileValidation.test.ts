@@ -4,6 +4,7 @@ import {
   compatibilityWarning,
   formatFileSize,
   getFileExtension,
+  isAcceptableMime,
   isSupportedExtension,
   validateAudioFile,
 } from './fileValidation';
@@ -45,10 +46,39 @@ describe('isSupportedExtension', () => {
   });
 });
 
+describe('isAcceptableMime', () => {
+  it('treats blank and generic MIME values as advisory', () => {
+    expect(isAcceptableMime('')).toBe(true);
+    expect(isAcceptableMime('   ')).toBe(true);
+    expect(isAcceptableMime('application/octet-stream')).toBe(true);
+    expect(isAcceptableMime('binary/octet-stream')).toBe(true);
+  });
+
+  it('accepts audio and MP4 container families', () => {
+    expect(isAcceptableMime('audio/wav')).toBe(true);
+    expect(isAcceptableMime('audio/mpeg')).toBe(true);
+    expect(isAcceptableMime('audio/x-flac')).toBe(true);
+    expect(isAcceptableMime('video/mp4')).toBe(true);
+    expect(isAcceptableMime('application/mp4')).toBe(true);
+  });
+
+  it('rejects clearly unrelated MIME families', () => {
+    expect(isAcceptableMime('text/plain')).toBe(false);
+    expect(isAcceptableMime('image/png')).toBe(false);
+    expect(isAcceptableMime('video/webm')).toBe(false);
+    expect(isAcceptableMime('application/pdf')).toBe(false);
+  });
+});
+
 describe('validateAudioFile', () => {
   it('accepts supported extensions with a blank MIME type', () => {
     const result = validateAudioFile(file('mix.flac', ''));
     expect(result.ok).toBe(true);
+  });
+
+  it('accepts supported extensions with a generic MIME type', () => {
+    expect(validateAudioFile(file('mix.mp3', 'application/octet-stream')).ok).toBe(true);
+    expect(validateAudioFile(file('mix.WAV', 'application/octet-stream')).ok).toBe(true);
   });
 
   it('accepts supported extensions with a browser container MIME type', () => {

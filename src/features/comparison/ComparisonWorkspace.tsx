@@ -31,12 +31,13 @@ export function ComparisonWorkspace() {
 
       <div className="workspace__footnote">
         <p>
-          Comparisons are temporary: refreshing or closing the page clears the selected files.
-          Nothing is saved.
+          Comparisons are temporary: refreshing or closing the page clears the selected files. The
+          transition duration lasts for this session only; nothing is saved.
         </p>
         <p>
           Actual codec support depends on your browser and on the codec stored inside the file. AAC
-          and M4A support varies by platform.
+          and M4A support varies by platform, and a supported extension is not a guarantee that the
+          file will decode.
         </p>
       </div>
     </section>

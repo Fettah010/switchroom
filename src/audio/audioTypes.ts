@@ -12,7 +12,16 @@ export type AudioVersion = 'original' | 'edited';
 export const AUDIO_VERSIONS: readonly AudioVersion[] = ['original', 'edited'];
 
 export type PlayerStatus =
-  'empty' | 'incomplete' | 'loading' | 'ready' | 'paused' | 'playing' | 'error';
+  | 'empty'
+  | 'incomplete'
+  | 'loading'
+  | 'ready'
+  | 'starting'
+  | 'playing'
+  | 'switching'
+  | 'paused'
+  | 'interrupted'
+  | 'error';
 
 export interface DeckInfo {
   fileName: string | null;
@@ -27,8 +36,16 @@ export interface DeckInfo {
 
 export interface ABPlayerSnapshot {
   status: PlayerStatus;
+  /** The version the user selected. May differ from `audibleVersion` mid-switch. */
   activeVersion: AudioVersion;
+  /** The deck that is actually carrying the audio right now. */
+  audibleVersion: AudioVersion;
+  /** Non-null while a switch is aligning or fading. */
+  switchingTo: AudioVersion | null;
   isPlaying: boolean;
+  isStarting: boolean;
+  /** True after the browser suspended/interrupted audio until the user resumes. */
+  interrupted: boolean;
   currentTime: number;
   duration: number;
   volume: number;
@@ -40,12 +57,17 @@ export interface ABPlayerSnapshot {
   globalError: string | null;
 }
 
+export interface MediaErrorLike {
+  readonly code: number;
+}
+
 export interface AudioElementLike extends EventTarget {
   src: string;
   preload: string;
   currentTime: number;
   readonly duration: number;
   readonly paused: boolean;
+  readonly error: MediaErrorLike | null;
   play(): Promise<void>;
   pause(): void;
   load(): void;
@@ -70,14 +92,23 @@ export interface GainNodeLike extends AudioNodeLike {
 
 export type MediaElementSourceLike = AudioNodeLike;
 
+/**
+ * Browsers expose `running`, `suspended` and `closed`. Some platforms also
+ * report an intermediate `interrupted` state; we model it without assuming
+ * every browser produces it.
+ */
+export type AudioContextStateLike = 'running' | 'suspended' | 'interrupted' | 'closed';
+
 export interface AudioContextLike {
   readonly currentTime: number;
-  readonly state: AudioContextState;
+  readonly state: AudioContextStateLike;
   readonly destination: AudioNodeLike;
   resume(): Promise<void>;
   close(): Promise<void>;
   createGain(): GainNodeLike;
   createMediaElementSource(element: AudioElementLike): MediaElementSourceLike;
+  addEventListener?(type: string, listener: () => void): void;
+  removeEventListener?(type: string, listener: () => void): void;
 }
 
 export interface AudioHost {
@@ -89,11 +120,14 @@ export interface AudioHost {
   probeCanPlayType(mimeType: string): string;
   requestFrame(callback: () => void): number;
   cancelFrame(handle: number): void;
+  setTimeout(callback: () => void, milliseconds: number): number;
+  clearTimeout(handle: number): void;
 }
 
 export interface AudioEngineOptions {
   host?: AudioHost;
   crossfadeMs?: number;
+  metadataTimeoutMs?: number;
   logger?: (message: string, details?: unknown) => void;
 }
 

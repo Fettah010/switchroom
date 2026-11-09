@@ -15,7 +15,9 @@ import assert from 'node:assert/strict';
 import { mkdir } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 
-const baseURL = process.env.SMOKE_URL ?? 'http://127.0.0.1:4173';
+// Vite preview prints and binds `localhost`, which may resolve to IPv6 only on
+// some Windows hosts; use the same host name so the default check just works.
+const baseURL = process.env.SMOKE_URL ?? 'http://localhost:4173';
 const screenshotPath = resolve(process.env.SMOKE_SCREENSHOT ?? 'test-results/preview-smoke.png');
 
 const browser = await chromium.launch({

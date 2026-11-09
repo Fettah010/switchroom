@@ -4,7 +4,7 @@ Switchroom deploys as a static single-page app on Cloudflare Workers Static Asse
 
 ## Current deployment
 
-The v0.1.0 release is deployed at <https://switchroom.ftallfettah.workers.dev> (Worker name `switchroom`) and was smoke-tested against that URL on 2026-11-08. The remaining instructions describe how to reproduce or update that deployment.
+The v0.2.0 release is deployed at <https://switchroom.ftallfettah.workers.dev> (Worker name `switchroom`) and was smoke-tested against that URL on 2026-11-09. The deployed version ID was `8c586bd7-7c70-4b83-bd31-290ffeecab28`. The remaining instructions describe how to reproduce or update that deployment.
 
 ## Prerequisites
 
@@ -149,6 +149,6 @@ Perform in order:
 5. `npm run deploy` succeeds and the public URL is recorded.
 6. `SMOKE_URL=<public URL> npm run smoke` passes.
 7. The public URL is checked in a real desktop browser.
-8. Only then: commit, push, create tag `v0.1.0` and publish GitHub release notes.
+8. Only then: commit, push, create tag `v0.2.0` and publish GitHub release notes.
 
 Never describe the release as deployed before steps 5–7 have actually passed.

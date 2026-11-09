@@ -3,8 +3,21 @@ import type { AudioParamLike, AudioVersion } from './audioTypes';
 /** Nominal crossfade length. Linear amplitude by design: correlated programme avoids a level bump. */
 export const DEFAULT_CROSSFADE_MS = 180;
 
+/** Bounds for the user-adjustable transition duration. */
+export const MIN_CROSSFADE_MS = 80;
+export const MAX_CROSSFADE_MS = 600;
+
 /** Small scheduling lead so automation never starts in the past. */
 export const GAIN_SCHEDULE_LEAD_SECONDS = 0.005;
+
+/** Clamps a requested transition duration to the supported range. */
+export function clampCrossfadeMs(value: number): number {
+  if (!Number.isFinite(value)) {
+    return DEFAULT_CROSSFADE_MS;
+  }
+
+  return Math.min(MAX_CROSSFADE_MS, Math.max(MIN_CROSSFADE_MS, Math.round(value)));
+}
 
 export interface GainRamp {
   startValue: number;
