@@ -4,7 +4,7 @@ Switchroom deploys as a static single-page app on Cloudflare Workers Static Asse
 
 ## Current deployment
 
-The v0.3.0 release is deployed at <https://switchroom.ftallfettah.workers.dev> (Worker name `switchroom`) and was smoke-tested against that URL on 2026-11-09. The deployed version ID was `eaaca848-40a7-4e07-9ee9-90fabb62b7b9`. The remaining instructions describe how to reproduce or update that deployment.
+The v0.3.0 release is deployed at <https://switchroom.ftallfettah.workers.dev> (Worker name `switchroom`) and was smoke-tested against that URL on 2026-11-09. The deployed version ID was `e31cbcbf-6c57-4243-bab8-9141548b2b76`. The remaining instructions describe how to reproduce or update that deployment.
 
 ## Prerequisites
 

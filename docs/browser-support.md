@@ -74,7 +74,7 @@ Playwright's Chromium and WebKit are test builds, not branded Chrome/Edge or Saf
 
 Unit/component suite: **185 tests passed** (Vitest, 14 files).
 
-The v0.3.0 production build passed the automated preview smoke check and then the same check against the public deployment at <https://switchroom.ftallfettah.workers.dev> (version `eaaca848-40a7-4e07-9ee9-90fabb62b7b9`). That check verifies the production title, privacy statement, absence of the development hook, footer version, local WAV loading, duration, both waveform lanes reaching ready and painting real ink, playback progress, A/B switching and pause state. It does not replace a human listening pass.
+The v0.3.0 production build passed the automated preview smoke check and then the same check against the public deployment at <https://switchroom.ftallfettah.workers.dev> (version `e31cbcbf-6c57-4243-bab8-9141548b2b76`). That check verifies the production title, privacy statement, absence of the development hook, footer version, local WAV loading, duration, both waveform lanes reaching ready and painting real ink, playback progress, A/B switching and pause state. It does not replace a human listening pass.
 
 ### Async cases covered deterministically instead of in a real browser
 

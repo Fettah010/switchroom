@@ -53,7 +53,7 @@ Also fixed during the pass:
 - Production build passes; the worker emits a separate
   `waveformWorker-*.js` chunk.
 - Preview smoke passes through the Workers runtime.
-- Public deploy: version `eaaca848-40a7-4e07-9ee9-90fabb62b7b9` at
+- Public deploy: version `e31cbcbf-6c57-4243-bab8-9141548b2b76` at
   <https://switchroom.ftallfettah.workers.dev>.
 - Public smoke passes against that URL, including both waveform lanes painting.
 

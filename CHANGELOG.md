@@ -40,7 +40,7 @@ All notable changes to Switchroom are recorded here. The format follows [Keep a 
 - WebKit 27.2 on Windows: 5 specs pass, 29 audio-dependent specs skip with an explicit message.
 - Formatting, lint, strict type-check, production build, Workers-runtime preview and preview smoke check pass.
 - The development diagnostic hook remains absent from the production build; no audio, peaks or metadata leave the browser.
-- Public deployment at <https://switchroom.ftallfettah.workers.dev> (version `eaaca848-40a7-4e07-9ee9-90fabb62b7b9`), smoke-tested against that URL on 2026-11-09, including both waveform lanes painting real ink and the footer reporting `v0.3.0`.
+- Public deployment at <https://switchroom.ftallfettah.workers.dev> (version `e31cbcbf-6c57-4243-bab8-9141548b2b76`), smoke-tested against that URL on 2026-11-09, including both waveform lanes painting real ink and the footer reporting `v0.3.0`.
 
 ### Known limitations
 
