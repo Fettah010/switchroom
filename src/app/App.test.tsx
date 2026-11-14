@@ -4,14 +4,27 @@ import { describe, expect, it } from 'vitest';
 import { App } from './App';
 import { ABAudioEngine } from '../audio/ABAudioEngine';
 import { FakeAudioHost, makeWavFile } from '../test/fakeAudioHost';
+import { createDefaultWorkspace } from '../workspaces/workspaceDefaults';
+import { InMemoryWorkspaceRepository } from '../workspaces/inMemoryWorkspaceRepository';
 
-function setup() {
+function setup(options?: { inEditor?: boolean }) {
+  const inEditor = options?.inEditor ?? true;
   const host = new FakeAudioHost();
   host.durationFor = (file) => (file.name.includes('edited') ? 3.4 : 3);
   const engine = new ABAudioEngine({ host });
   const user = userEvent.setup();
-  render(<App engine={engine} />);
-  return { host, engine, user };
+  const repo = new InMemoryWorkspaceRepository();
+  const defaultWs = createDefaultWorkspace('test-ws');
+  repo.create(defaultWs);
+  render(
+    <App
+      engine={engine}
+      customRepository={repo}
+      initialWorkspace={inEditor ? defaultWs : null}
+      initialViewMode={inEditor ? 'editor' : 'home'}
+    />,
+  );
+  return { host, engine, user, repo, defaultWs };
 }
 
 function slot(version: 'Original' | 'Edited') {
@@ -30,11 +43,12 @@ async function chooseFile(
 
 describe('Switchroom interface', () => {
   it('presents both slots with labels and browse controls', async () => {
-    setup();
+    const { user } = setup({ inEditor: false });
 
     expect(
       screen.getByRole('heading', { level: 1, name: /Hear the difference/i }),
     ).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /New comparison/i }));
     await waitFor(() =>
       expect(screen.getByRole('heading', { level: 3, name: 'Original' })).toBeVisible(),
     );

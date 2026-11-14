@@ -1,3 +1,5 @@
+import { Settings as SettingsIcon } from 'lucide-react';
+import { useWorkspace } from '../../hooks/useWorkspace';
 import { ThemeToggle } from '../ui/ThemeToggle';
 
 function Wordmark() {
@@ -31,9 +33,19 @@ function Wordmark() {
 }
 
 export function TopBar() {
+  const { openHome, setIsSettingsOpen } = useWorkspace();
+
   return (
     <header className="site-header">
-      <a className="wordmark" href="/" aria-label="Switchroom home">
+      <a
+        className="wordmark"
+        href="/"
+        aria-label="Switchroom home"
+        onClick={(e) => {
+          e.preventDefault();
+          openHome();
+        }}
+      >
         <Wordmark />
         <span className="wordmark__text">Switchroom</span>
       </a>
@@ -43,6 +55,15 @@ export function TopBar() {
           <span className="local-badge__dot" aria-hidden="true" />
           <span className="local-badge__label">Local-only</span>
         </span>
+        <button
+          type="button"
+          className="icon-btn topbar-settings-btn"
+          onClick={() => setIsSettingsOpen(true)}
+          aria-label="Settings"
+          title="Open settings"
+        >
+          <SettingsIcon size={16} aria-hidden="true" />
+        </button>
         <ThemeToggle />
       </div>
     </header>

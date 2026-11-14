@@ -10,21 +10,22 @@ Your audio never leaves the browser. There is no account, no upload, no backend 
 
 ## Project status
 
-v0.3.0 is publicly deployed at <https://switchroom.ftallfettah.workers.dev> and smoke-tested against that URL. The automated suite passes in Chromium and Firefox; WebKit on Windows skips audio-dependent specs because that build does not decode local audio in this environment. The only human listening pass on record is from v0.1.0 in Microsoft Edge on Windows 11 with WAV files; see [Browser support](docs/browser-support.md) for the exact matrix, manual checks, and listening record.
+v0.4.0 is publicly deployed at <https://switchroom.ftallfettah.workers.dev> and smoke-tested against that URL. The automated suite passes in Chromium and Firefox; WebKit on Windows skips audio-dependent specs because that build does not decode local audio in this environment. The only human listening pass on record is from v0.1.0 in Microsoft Edge on Windows 11 with WAV files; see [Browser support](docs/browser-support.md) for the exact matrix, manual checks, and listening record.
 
-## What v0.3 does
+## What v0.4 does
 
-Everything in v0.2, plus:
+Everything in v0.3, plus:
 
-- **Waveform previews:** Original (A) and Edited (B) amplitude waveforms drawn on one shared time axis, with visible A/B labels. Waveform generation is local-only (downsampled peaks; no audio leaves the browser) and never blocks playback.
-- **Expressive shared timeline:** one playhead spans both waveform rows and the timeline slider; click or tap either waveform row to seek both decks together through the same canonical engine operation.
-- **Waveform states:** preparing, ready, fallback (skipped for large/unsupported analysis files) and unavailable; playback and seeking remain available whenever audio is playable.
-- **Worker-assisted peak generation** where a Dedicated Worker is available, with a bounded resource policy and generation-safe cancellation.
-- **Full-page entrance motion:** the workspace heading, both file slots (with a short stagger), the player and waveform, and the footnotes/footer all reveal deliberately; dropzones have hover, focus, press and drag feedback.
-- **Custom range-control system:** the timeline, master volume and crossfade sliders share one premium skin with visible progress, touch-friendly hit areas and theme-appropriate rail/thumb/focus styling.
-- **Stable Play/Pause UI:** the play button keeps fixed geometry through Play / Starting… / Pause, and surrounding controls do not jump when status labels change.
+- **Local workspaces:** persistent comparison metadata stored locally in IndexedDB (`switchroom-local`, version 1). Save comparison titles, descriptions, internal review notes, tags/labels, presentation layouts, and custom crossfade durations across browser reloads.
+- **Strict local-first privacy:** zero audio bytes, decoded PCM buffers, waveform peaks, or filesystem paths are ever persisted. The browser memory holds audio only during active sessions.
+- **Truthful reopening & relinking UX:** upon reloading or reopening a workspace, Switchroom remembers your exact configuration, labels, notes, and preferred crossfade, displaying clear descriptors of the required files so you can reselect them and resume listening in seconds.
+- **Portable JSON manifest (`.switchroom.json`) import/export:** export any comparison configuration as a portable JSON file (strictly validated, max 1 MiB, version 1); import manifests into any Switchroom browser without uploading to any server.
+- **4 Presentation layouts:** switch seamlessly between `standard` (balanced player and waveforms), `player-focused` (dominant transport and switch controls), `waveform-focused` (deep multi-lane waveform timeline), and `compact-review` (dense review layout).
+- **Local client preview mode:** presentation view for client listening sessions, featuring a clear "Local presentation preview — audio stays on this device" banner and a single-click exit button.
+- **Comprehensive settings panel:** manage theme preferences, interface motion preferences, default crossfade duration, default presentation layout, and one-click local data clearing with explicit confirmation.
+- **Recent comparisons home view:** a clean launchpad showing saved local comparison cards with quick open, manifest export, and delete actions.
 
-No share links, accounts, comments, persistent library or future-milestone placeholders exist; v0.3 remains strictly local-first.
+No remote sharing links, cloud accounts, remote comments, cloud databases, or audio file uploads exist; Switchroom remains strictly local-first.
 
 ## Privacy
 
@@ -33,11 +34,12 @@ No share links, accounts, comments, persistent library or future-milestone place
 How that is enforced:
 
 - Files are read through the browser's `File` API and played from in-memory object URLs.
-- Waveform peaks are derived from local files and never uploaded, persisted or sent to a server.
-- Nothing is sent to a server. The production build has no API, no account, no database and no analytics.
-- Object URLs are revoked when a file is replaced, removed, fails to load, or the app is disposed.
-- No file bytes, metadata or peaks are written to `localStorage`, `sessionStorage`, IndexedDB or Cache Storage.
-- The only persisted value is the manual theme choice, under the key `switchroom.theme`.
+- Waveform peaks are derived in memory and never uploaded, persisted or sent to a server.
+- Workspace metadata (titles, notes, labels, preferences) is persisted only in your browser's private IndexedDB database (`switchroom-local`).
+- No audio file blobs, decoded PCM, or local filesystem paths are stored in IndexedDB or exported in manifests.
+- Nothing is sent to a server. The production build has no API, no backend account system, no cloud storage, and no tracking or analytics.
+- Object URLs are revoked when a file is replaced, removed, fails to load, or the app is closed.
+- The manual theme choice is kept in `localStorage` (`switchroom.theme`) for instantaneous, flash-free pre-render.
 
 ## Supported files and codecs
 
@@ -50,9 +52,9 @@ Switchroom accepts `.wav`, `.mp3`, `.flac`, `.aac` and `.m4a` files. The extensi
 
 ## Browser support
 
-The 34-spec Playwright suite passes in full in Chromium 158 and Firefox 159 on Windows 11, covering file loading, playhead sync, A/B switching, gain automation, seeking while paused and playing, startup cancellation, rapid reversals, fade interruption, context interruption recovery, replace/remove cycles, crossfade duration changes, real waveform rendering, shared-axis seek, mismatch clipping, slider geometry, themes, keyboard access and reduced motion. Playwright WebKit 27.2 passes 5 UI/validation specs and skips 29 audio-dependent specs on Windows because that build does not decode local audio in this environment.
+The 40-spec Playwright suite passes in full in Chromium and Firefox on Windows 11, covering local workspaces, IndexedDB persistence, manifest import/export, presentation layouts, client preview, file loading, playhead sync, A/B switching, gain automation, seeking while paused and playing, startup cancellation, rapid reversals, fade interruption, context interruption recovery, replace/remove cycles, crossfade duration changes, real waveform rendering, shared-axis seek, mismatch clipping, slider geometry, themes, keyboard access and reduced motion. Playwright WebKit passes UI/validation specs and skips audio-dependent specs on Windows because that build does not decode local audio in this environment.
 
-Microsoft Edge on Windows 11 was used for the v0.1.0 manual listening pass against the public deployment with WAV files. Branded Chrome, branded Safari, Chrome Android and Safari iOS have **not** been manually verified, and no human listening pass has been recorded for v0.2.0 or v0.3.0. Playwright WebKit is not identical to branded Safari. See [docs/browser-support.md](docs/browser-support.md) for the exact matrix, limitations and the listening record.
+Microsoft Edge on Windows 11 was used for the v0.1.0 manual listening pass against the public deployment with WAV files. Branded Chrome, branded Safari, Chrome Android and Safari iOS have **not** been manually verified, and no human listening pass has been recorded for v0.2.0, v0.3.0, or v0.4.0. Playwright WebKit is not identical to branded Safari. See [docs/browser-support.md](docs/browser-support.md) for the exact matrix, limitations and the listening record.
 
 ## Prerequisites
 
@@ -107,7 +109,7 @@ npm run test:e2e:all   # Playwright, Chromium + Firefox + WebKit
 npm run test:e2e:ui    # Playwright UI mode
 ```
 
-The v0.3.0 source tree passes 185 Vitest tests across 14 files, 34 Chromium Playwright specs and 34 Firefox specs. WebKit reports 5 passed and 29 skipped on Windows for the environment reason above.
+The v0.4.0 source tree passes 223 Vitest tests across 21 files, 40 Chromium Playwright specs and 40 Firefox specs. WebKit reports 5 passed and 35 skipped on Windows for the environment reason above.
 
 The Playwright suite generates its own deterministic WAV and failure fixtures in `tests/e2e/fixtures/` before each run; that folder is ignored by git. Regenerate them manually with `npm run fixtures`.
 
@@ -137,7 +139,7 @@ npx wrangler login   # one-time, browser-based authentication
 npm run deploy
 ```
 
-The deploy command builds and uploads the static assets to Cloudflare Workers. The current v0.3.0 deployment is <https://switchroom.ftallfettah.workers.dev>; Wrangler also prints the URL and the Cloudflare dashboard records it. Full instructions, including CI secret setup and post-deploy checks, are in [docs/deployment.md](docs/deployment.md).
+The deploy command builds and uploads the static assets to Cloudflare Workers. The current v0.4.0 deployment is <https://switchroom.ftallfettah.workers.dev>; Wrangler also prints the URL and the Cloudflare dashboard records it. Full instructions, including CI secret setup and post-deploy checks, are in [docs/deployment.md](docs/deployment.md).
 
 Never commit a Cloudflare token, `.env` file or any other credential.
 
@@ -145,22 +147,25 @@ Never commit a Cloudflare token, `.env` file or any other credential.
 
 ```text
 src/
-  app/            App composition, providers and theme resolution
+  app/            App composition, providers and theme/workspace context
   audio/          Framework-independent A/B engine, gain math, validation
   components/     Layout, file slots, player controls and UI primitives
-  features/       The comparison workspace
-  hooks/          React bindings for the player, playhead and theme
-  styles/         Tokens, themes, base styles and responsive components
+  features/       Comparison workspace, home screen, presentation layouts, settings
+  hooks/          React bindings for player, playhead, workspace, preferences, theme
+  styles/         Tokens, themes, base styles, layout presets and responsive components
   test/           Deterministic fake media/Web Audio host
+  workspaces/     IndexedDB repositories, validation, manifest import/export
 tests/e2e/        Playwright specifications, helpers and generated fixtures
 scripts/          Fixture generation, screenshot capture, preview smoke check
-docs/             Engine, decisions, development, deployment and support docs
+docs/             Engine, workspaces, manifest, decisions, deployment and support docs
 ```
 
 ## Documentation
 
 - [Audio engine](docs/audio-engine.md) — graph, playhead policy, crossfade and resource lifecycle.
 - [Waveform](docs/waveform.md) — peak pipeline, worker, resource budget, states and renderer.
+- [Local workspaces](docs/local-workspaces.md) — IndexedDB storage model, privacy guarantees, relink workflow.
+- [Workspace manifest](docs/workspace-manifest.md) — portable JSON format, validation rules, zero binary payloads.
 - [Implementation decisions](docs/decisions.md) — scope, architecture and trade-offs.
 - [Local development](docs/local-development.md) — setup, scripts, fixtures and troubleshooting.
 - [Deployment](docs/deployment.md) — Cloudflare, previews, secrets and post-deploy checks.
@@ -169,13 +174,13 @@ docs/             Engine, decisions, development, deployment and support docs
 ## Known limitations
 
 - The two files do not need to be the same length, but comparison stops at the shorter duration. There is no silence padding.
-- The crossfade is a linear-amplitude fade from 80 to 600 ms. Changing the duration affects the next switch, not a fade already in progress. The setting is session-only and resets to 180 ms on reload. If the two files have very different loudness, the transition will reflect that difference; Switchroom does not normalize loudness.
+- The crossfade is a linear-amplitude fade from 80 to 600 ms. Changing the duration affects the next switch, not a fade already in progress. The duration can be customized per workspace or set as a default in settings. If the two files have very different loudness, the transition will reflect that difference; Switchroom does not normalize loudness.
 - Codec support is the browser's, not Switchroom's. AAC/M4A is the most variable.
 - Waveform previews are a best-effort visual aid. PCM WAV is analysed directly; compressed formats depend on the browser decoder and may fall back to a plain timeline while playback still works.
-- v0.3 has no persistent file library, sharing, accounts, analytics or server processing.
+- Switchroom stores comparison metadata in IndexedDB, but by design never persists audio file bytes. When reopening a workspace or reloading, files must be reselected from your disk.
 - There are no global keyboard shortcuts. All controls are reachable with Tab and operable with standard keys, without stealing focus from browser or assistive-technology commands.
 - Automated browser coverage is desktop Chromium, Firefox and WebKit on Windows. Real mobile touch behaviour and branded Safari have not been verified.
-- The only manual listening pass covered WAV files in Microsoft Edge on Windows 11 for v0.1.0. The 80–600 ms range, interruption recovery, waveforms and the v0.2.0/v0.3.0 builds have not been listened to by a human. MP3, FLAC, AAC and M4A decode and listening behaviour, mobile touch, and Safari audio activation still need manual checks. Automated tests prove gain scheduling, playhead continuity, waveform pixels and state transitions; they cannot prove that a transition sounds pleasant in every browser.
+- The only manual listening pass covered WAV files in Microsoft Edge on Windows 11 for v0.1.0. The 80–600 ms range, interruption recovery, waveforms, and the v0.2.0–v0.4.0 builds have not been listened to by a human. MP3, FLAC, AAC and M4A decode and listening behaviour, mobile touch, and Safari audio activation still need manual checks. Automated tests prove gain scheduling, playhead continuity, waveform pixels and state transitions; they cannot prove that a transition sounds pleasant in every browser.
 
 ## License
 

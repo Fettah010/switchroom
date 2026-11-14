@@ -6,6 +6,7 @@ import { formatFileSize, ACCEPT_ATTRIBUTE } from '../../audio/fileValidation';
 import { formatTime } from '../../audio/timeFormatting';
 import { usePlayer } from '../../hooks/usePlayer';
 import type { WaveformService } from '../../waveform/waveformTypes';
+import type { MediaDescriptor } from '../../workspaces/workspaceTypes';
 
 const SLOT_COPY: Record<
   AudioVersion,
@@ -28,9 +29,17 @@ const SLOT_COPY: Record<
 export function AudioFileSlot({
   version,
   waveformService,
+  readOnly = false,
+  savedDescriptor = null,
+  onFileLoaded,
+  onFileRemoved,
 }: {
   version: AudioVersion;
   waveformService?: WaveformService;
+  readOnly?: boolean;
+  savedDescriptor?: MediaDescriptor | null;
+  onFileLoaded?: (file: File) => void;
+  onFileRemoved?: () => void;
 }) {
   const { engine, snapshot } = usePlayer();
   const info = snapshot[version];
@@ -41,21 +50,17 @@ export function AudioFileSlot({
   const dragDepth = useRef(0);
   const [isDragging, setIsDragging] = useState(false);
   const [selectionError, setSelectionError] = useState<string | null>(null);
+  const [mismatchWarning, setMismatchWarning] = useState<string | null>(null);
 
   const inputId = `audio-file-${version}`;
   const errorId = `audio-file-${version}-error`;
   const statusId = `audio-file-${version}-status`;
   const errorMessage = selectionError ?? info.error;
 
-  // Choosing a file replaces the drop zone with the file summary. Move focus
-  // to the first stable action in the new view so keyboard users are not
-  // dropped back to the document body.
   useEffect(() => {
     const hasFile = Boolean(info.fileName);
 
     if (!hadFile.current && hasFile) {
-      // Defer past the file input's own focus handling, then land on the
-      // first stable action in the replacement view.
       const handle = window.setTimeout(() => replaceRef.current?.focus(), 0);
       hadFile.current = hasFile;
       return () => window.clearTimeout(handle);
@@ -65,6 +70,7 @@ export function AudioFileSlot({
   }, [info.fileName]);
 
   function chooseFiles(files: FileList | null): void {
+    if (readOnly) return;
     if (!files || files.length === 0) {
       return;
     }
@@ -75,9 +81,23 @@ export function AudioFileSlot({
     }
 
     const file = files[0];
-
     if (!file) {
       return;
+    }
+
+    // Non-blocking warning if selected file differs from saved descriptor
+    if (savedDescriptor) {
+      const nameDiffers = file.name !== savedDescriptor.fileName;
+      const sizeDiffers = Math.abs(file.size - savedDescriptor.sizeBytes) > 1024;
+      if (nameDiffers || sizeDiffers) {
+        setMismatchWarning(
+          `Selected file differs from saved setup (${savedDescriptor.fileName}, ${formatFileSize(savedDescriptor.sizeBytes)}). Playing newly selected audio.`,
+        );
+      } else {
+        setMismatchWarning(null);
+      }
+    } else {
+      setMismatchWarning(null);
     }
 
     const result = engine.loadFile(version, file);
@@ -86,20 +106,27 @@ export function AudioFileSlot({
     if (waveformService) {
       waveformService.loadFile(result.ok ? file : null);
     }
+
+    if (result.ok && onFileLoaded) {
+      onFileLoaded(file);
+    }
   }
 
   function handleDragEnter(event: DragEvent<HTMLElement>): void {
+    if (readOnly) return;
     event.preventDefault();
     dragDepth.current += 1;
     setIsDragging(true);
   }
 
   function handleDragOver(event: DragEvent<HTMLElement>): void {
+    if (readOnly) return;
     event.preventDefault();
     event.dataTransfer.dropEffect = 'copy';
   }
 
   function handleDragLeave(event: DragEvent<HTMLElement>): void {
+    if (readOnly) return;
     event.preventDefault();
     dragDepth.current = Math.max(dragDepth.current - 1, 0);
 
@@ -109,6 +136,7 @@ export function AudioFileSlot({
   }
 
   function handleDrop(event: DragEvent<HTMLElement>): void {
+    if (readOnly) return;
     event.preventDefault();
     dragDepth.current = 0;
     setIsDragging(false);
@@ -116,15 +144,22 @@ export function AudioFileSlot({
   }
 
   function openPicker(): void {
+    if (readOnly) return;
     inputRef.current?.click();
   }
 
   function handleRemove(): void {
+    if (readOnly) return;
     setSelectionError(null);
+    setMismatchWarning(null);
     engine.removeFile(version);
 
     if (waveformService) {
       waveformService.loadFile(null);
+    }
+
+    if (onFileRemoved) {
+      onFileRemoved();
     }
   }
 
@@ -144,7 +179,7 @@ export function AudioFileSlot({
 
   return (
     <motion.article
-      className={`slot slot--${version}${isDragging ? ' slot--dragging' : ''}`}
+      className={`slot slot--${version}${isDragging ? ' slot--dragging' : ''}${readOnly ? ' slot--readonly' : ''}`}
       aria-labelledby={`slot-${version}-title`}
       aria-busy={info.loading}
       initial={reduceMotion ? false : 'hidden'}
@@ -188,36 +223,62 @@ export function AudioFileSlot({
         </span>
       </header>
 
-      <input
-        ref={inputRef}
-        id={inputId}
-        className="sr-only"
-        type="file"
-        accept={ACCEPT_ATTRIBUTE}
-        tabIndex={-1}
-        aria-label={`Choose ${copy.title} audio file`}
-        aria-invalid={errorMessage ? true : undefined}
-        aria-describedby={errorMessage ? errorId : statusId}
-        onChange={(event) => {
-          chooseFiles(event.target.files);
-          event.target.value = '';
-        }}
-      />
+      {!readOnly && (
+        <input
+          ref={inputRef}
+          id={inputId}
+          className="sr-only"
+          type="file"
+          accept={ACCEPT_ATTRIBUTE}
+          tabIndex={-1}
+          aria-label={`Choose ${copy.title} audio file`}
+          aria-invalid={errorMessage ? true : undefined}
+          aria-describedby={errorMessage ? errorId : statusId}
+          onChange={(event) => {
+            chooseFiles(event.target.files);
+            event.target.value = '';
+          }}
+        />
+      )}
 
       {!info.fileName ? (
-        <button
-          type="button"
-          className="dropzone"
-          aria-describedby={errorMessage ? errorId : undefined}
-          onClick={openPicker}
-        >
-          <span className="dropzone__icon" aria-hidden="true">
-            <Upload size={17} strokeWidth={1.75} />
-          </span>
-          <span className="dropzone__title">Choose or drop a file</span>
-          <span className="dropzone__hint">{copy.description}</span>
-          <span className="dropzone__formats">WAV · MP3 · FLAC · AAC · M4A</span>
-        </button>
+        readOnly ? (
+          <div className="dropzone dropzone--readonly">
+            <span className="dropzone__icon" aria-hidden="true">
+              <FileAudio size={17} strokeWidth={1.75} />
+            </span>
+            <span className="dropzone__title">
+              {savedDescriptor ? savedDescriptor.fileName : 'Audio not loaded'}
+            </span>
+            <span className="dropzone__hint">
+              {savedDescriptor
+                ? `Saved setup: ${formatFileSize(savedDescriptor.sizeBytes)}`
+                : 'Audio file must be selected in editor.'}
+            </span>
+          </div>
+        ) : (
+          <button
+            type="button"
+            className="dropzone"
+            aria-describedby={errorMessage ? errorId : undefined}
+            onClick={openPicker}
+          >
+            <span className="dropzone__icon" aria-hidden="true">
+              <Upload size={17} strokeWidth={1.75} />
+            </span>
+            <span className="dropzone__title">
+              {savedDescriptor
+                ? `Select ${savedDescriptor.fileName} again`
+                : 'Choose or drop a file'}
+            </span>
+            <span className="dropzone__hint">
+              {savedDescriptor
+                ? `Expected: ${formatFileSize(savedDescriptor.sizeBytes)} · Click to select`
+                : copy.description}
+            </span>
+            <span className="dropzone__formats">WAV · MP3 · FLAC · AAC · M4A</span>
+          </button>
+        )
       ) : (
         <div className="slot__file">
           <div className="file-head">
@@ -258,7 +319,14 @@ export function AudioFileSlot({
             </p>
           )}
 
-          {!errorMessage && info.warning && (
+          {!errorMessage && mismatchWarning && (
+            <p className="slot__warning">
+              <AlertTriangle size={14} aria-hidden="true" />
+              {mismatchWarning}
+            </p>
+          )}
+
+          {!errorMessage && !mismatchWarning && info.warning && (
             <p className="slot__warning">
               <AlertTriangle size={14} aria-hidden="true" />
               {info.warning}
@@ -272,21 +340,27 @@ export function AudioFileSlot({
             </p>
           )}
 
-          <div className="slot__actions">
-            <button
-              ref={replaceRef}
-              type="button"
-              className="text-button"
-              aria-describedby={errorMessage ? errorId : undefined}
-              onClick={openPicker}
-            >
-              Replace
-            </button>
-            <button type="button" className="text-button text-button--quiet" onClick={handleRemove}>
-              <X size={13} aria-hidden="true" />
-              Remove
-            </button>
-          </div>
+          {!readOnly && (
+            <div className="slot__actions">
+              <button
+                ref={replaceRef}
+                type="button"
+                className="text-button"
+                aria-describedby={errorMessage ? errorId : undefined}
+                onClick={openPicker}
+              >
+                Replace
+              </button>
+              <button
+                type="button"
+                className="text-button text-button--quiet"
+                onClick={handleRemove}
+              >
+                <X size={13} aria-hidden="true" />
+                Remove
+              </button>
+            </div>
+          )}
         </div>
       )}
 

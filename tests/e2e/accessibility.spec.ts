@@ -67,6 +67,10 @@ test.describe('keyboard access', () => {
     await page.keyboard.press('Tab');
     await expect(page.locator('.wordmark')).toBeFocused();
 
+    const topbarSettings = page.locator('.topbar-settings-btn');
+    await page.keyboard.press('Tab');
+    await expect(topbarSettings).toBeFocused();
+
     const systemTheme = page.getByRole('button', { name: 'System theme' });
     await page.keyboard.press('Tab');
     await expect(systemTheme).toBeFocused();
@@ -78,10 +82,23 @@ test.describe('keyboard access', () => {
     await expect(page.getByRole('button', { name: 'Dark theme' })).toBeFocused();
     await page.keyboard.press('Tab');
     await expect(page.getByRole('button', { name: 'Light theme' })).toBeFocused();
-    await page.keyboard.press('Tab');
 
-    // The programmatic file input is removed from the tab order; its visible
-    // dropzone button is the keyboard target instead.
+    const newComparisonBtn = page.getByRole('button', { name: 'New comparison' });
+    await page.keyboard.press('Tab');
+    await expect(newComparisonBtn).toBeFocused();
+
+    // Activate New Comparison via keyboard Enter
+    await page.keyboard.press('Enter');
+    await expect(page.locator('.slot--original')).toBeVisible();
+
+    // Tab through workspace toolbar controls into the dropzone
+    while (
+      !(await page
+        .locator('.slot--original .dropzone')
+        .evaluate((el) => document.activeElement === el))
+    ) {
+      await page.keyboard.press('Tab');
+    }
     await expect(page.locator('.slot--original .dropzone')).toBeFocused();
   });
 

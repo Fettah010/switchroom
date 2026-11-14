@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { expect, test } from '@playwright/test';
 import {
   editedInput,
+  ensureComparisonEditor,
   fixturePath,
   loadPair,
   originalInput,
@@ -63,6 +64,7 @@ test.describe('theme and responsive layout', () => {
     skipAudioFlowOnWindowsWebkit();
     await page.setViewportSize({ width: 360, height: 800 });
     await page.goto('/');
+    await ensureComparisonEditor(page);
 
     const overflow = await page.evaluate(() => ({
       document: document.documentElement.scrollWidth,
@@ -110,6 +112,7 @@ test.describe('theme and responsive layout', () => {
   test('E2E-09 uses two columns at 1440 px', async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto('/');
+    await ensureComparisonEditor(page);
 
     // Let the entrance reveal complete so layout measurements are stable.
     await page.waitForFunction(() => {
@@ -161,6 +164,7 @@ test.describe('theme and responsive layout', () => {
     skipAudioFlowOnWindowsWebkit();
     await page.setViewportSize({ width: 360, height: 800 });
     await page.goto('/');
+    await ensureComparisonEditor(page);
 
     const longName = `${'very-long-original-recording-name-'.repeat(4)}.wav`;
     const wav = readFileSync(fixturePath('original.wav'));

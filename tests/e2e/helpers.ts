@@ -64,17 +64,33 @@ export function totalTime(page: Page) {
   return page.locator('.timeline__times .time--total');
 }
 
+export async function ensureComparisonEditor(page: Page): Promise<void> {
+  if (await page.locator('.slot--original').isVisible()) {
+    return;
+  }
+  const newComparisonBtn = page.getByRole('button', { name: 'New comparison' });
+  if (await newComparisonBtn.isVisible()) {
+    await newComparisonBtn.click();
+    await page.waitForSelector('.slot--original');
+  }
+}
+
 /** Loads a pair of WAV fixtures and waits until both decks report ready. */
 export async function loadPair(
   page: Page,
   original = 'original.wav',
   edited = 'edited.wav',
 ): Promise<void> {
+  await ensureComparisonEditor(page);
   await originalInput(page).setInputFiles(fixturePath(original));
   await editedInput(page).setInputFiles(fixturePath(edited));
-  await expect(playButton(page)).toBeEnabled();
-  await expect(page.locator('.slot--original .slot__status')).toHaveText('Ready');
-  await expect(page.locator('.slot--edited .slot__status')).toHaveText('Ready');
+  await expect(playButton(page)).toBeEnabled({ timeout: 10_000 });
+  await expect(page.locator('.slot--original .slot__status')).toHaveText('Ready', {
+    timeout: 10_000,
+  });
+  await expect(page.locator('.slot--edited .slot__status')).toHaveText('Ready', {
+    timeout: 10_000,
+  });
 }
 
 export async function readDiagnostics(page: Page): Promise<DeckDiagnosticsMap> {

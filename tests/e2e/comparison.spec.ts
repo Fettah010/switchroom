@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { expect, test } from '@playwright/test';
 import {
   editedInput,
+  ensureComparisonEditor,
   fixturePath,
   loadPair,
   originalInput,
@@ -21,10 +22,8 @@ import {
 test.describe('comparison workspace', () => {
   test('E2E-01 opens empty with the privacy statement and a disabled player', async ({ page }) => {
     await page.goto('/');
+    await ensureComparisonEditor(page);
 
-    await expect(
-      page.getByRole('heading', { level: 1, name: 'Hear the difference.' }),
-    ).toBeVisible();
     await expect(page.locator('.privacy-line')).toContainText(
       'Local-only listening. Your audio stays in this browser. Switchroom does not upload or store your files.',
     );
@@ -185,6 +184,7 @@ test.describe('comparison workspace', () => {
 
   test('E2E-05 rejects an empty file, an unsupported file and a corrupt load', async ({ page }) => {
     await page.goto('/');
+    await ensureComparisonEditor(page);
 
     await originalInput(page).setInputFiles(fixturePath('empty.wav'));
     await expect(page.locator('.slot--original .slot__error')).toHaveText(
@@ -507,6 +507,7 @@ test.describe('comparison workspace', () => {
   test('E2E-22 accepts a supported extension with a generic MIME type', async ({ page }) => {
     skipAudioFlowOnWindowsWebkit();
     await page.goto('/');
+    await ensureComparisonEditor(page);
 
     const wav = readFileSync(fixturePath('original.wav'));
 
@@ -558,6 +559,7 @@ test.describe('comparison workspace', () => {
 
   test('E2E-25 slider fill terminates exactly at the thumb centre', async ({ page }) => {
     await page.goto('/');
+    await ensureComparisonEditor(page);
 
     const measure = (wrapperSelector: string) =>
       page.evaluate((selector) => {

@@ -39,6 +39,14 @@ try {
   await page.goto(baseURL, { waitUntil: 'networkidle' });
 
   assert.match(await page.title(), /Switchroom/);
+  assert.equal(await page.locator('.site-footer__version').textContent(), 'v0.4.0');
+
+  // Home page has New comparison button
+  const newComparisonBtn = page.getByRole('button', { name: 'New comparison' });
+  assert.equal(await newComparisonBtn.isVisible(), true);
+  await newComparisonBtn.click();
+  await page.waitForSelector('.slot--original');
+
   assert.equal(
     await page.locator('.privacy-line').getByText('Local-only listening.').isVisible(),
     true,
@@ -64,7 +72,6 @@ try {
 
   assert.equal(await page.locator('.slot__status--ready').count(), 2);
   assert.equal(await page.locator('.timeline__times .time--total').textContent(), '0:04');
-  assert.equal(await page.locator('.site-footer__version').textContent(), 'v0.3.0');
 
   // Both real waveform lanes must finish analysis and paint in the production
   // worker bundle, not just in the dev server.
@@ -115,6 +122,23 @@ try {
 
   await page.getByRole('button', { name: 'Pause', exact: true }).click();
   assert.equal(await page.locator('#player-status').textContent(), 'Paused on Edited.');
+
+  // Test v0.4.0 metadata persistence
+  const titleInput = page.locator('.metadata-editor__title-input');
+  await titleInput.fill('Smoke Test Comparison');
+  await page.waitForTimeout(600);
+  await page.waitForSelector('.save-status--saved', { timeout: 5_000 });
+
+  // Test client preview mode
+  await page.getByRole('button', { name: 'Client preview' }).click();
+  assert.equal(await page.locator('.client-preview__banner').isVisible(), true);
+  await page.getByRole('button', { name: 'Exit preview' }).click();
+  assert.equal(await page.locator('.client-preview__banner').isVisible(), false);
+
+  // Return to home view and verify saved workspace is listed
+  await page.getByRole('button', { name: 'All comparisons' }).click();
+  await page.waitForSelector('.recent-workspaces');
+  assert.equal(await page.getByText('Smoke Test Comparison').isVisible(), true);
 
   assert.deepEqual(consoleErrors, []);
   assert.deepEqual(pageErrors, []);

@@ -145,6 +145,41 @@ Instead:
 
 StrictMode intentionally mounts, unmounts and remounts components in development. Disposing the engine synchronously in an effect cleanup would leave the remounted provider holding a disposed engine. Disposal is therefore deferred to a zero-delay timer that the remount clears; a real unmount still releases object URLs, nodes and the `AudioContext`.
 
+## v0.4: local workspaces, manifest import/export, presentation layouts and settings
+
+### IndexedDB for local-first metadata persistence
+
+Switchroom v0.4 introduces local comparison workspaces without requiring a cloud backend or account system.
+
+- Database: `switchroom-local`, schema version 1.
+- Object stores: `workspaces` (keyPath `id`, indexes on `updatedAt` and `createdAt`), `preferences` (keyPath `id`).
+- Fail-safe fallback: If IndexedDB is blocked or throws a `SecurityError` (e.g. strict private browsing containers), `InMemoryWorkspaceRepository` takes over gracefully with a clear banner, allowing full comparison in the active tab.
+
+### Truthful relinking vs. storing audio in browser databases
+
+A critical design choice in v0.4 was whether to persist audio blobs or decoded PCM in IndexedDB or CacheStorage. We deliberately rejected storing audio files in browser storage:
+
+1. **Quota & Performance:** Two uncompressed 24-bit 96 kHz WAV stems can easily exceed 400 MB. Storing such large blobs in IndexedDB triggers quota exceptions, memory bloat, and browser tab crashes.
+2. **Privacy & Sandboxing:** Users expect that when they close an incognito tab or clear cache, their private audio is not secretly retained in an opaque browser database.
+3. **Truthful UX:** Switchroom adopts a transparent contract. Metadata (title, description, engineering notes, labels, layout, crossfade) is remembered; when reopened, a clear Relink Media Notice displays expected filenames and sizes so the user can re-select the files in seconds.
+
+### Portable `.switchroom.json` manifest format
+
+To allow sharing session notes and configurations between machines or colleagues without uploading audio to a server, v0.4 defines the `.switchroom.json` manifest:
+
+- Size bounded: 1 MiB ceiling checked before JSON parsing to protect against memory attacks.
+- Strict validation: version 1 schema enforcement, character limits, number clamping.
+- Prohibited key checks: assertions guarantee no `audioBuffer`, `blob`, `token`, `secret`, or `path` keys exist in the payload.
+- Import isolation: imported workspaces always receive a new locally unique ID, preventing accidental overwrites.
+
+### Single-tree presentation layouts
+
+The 4 layouts (`standard`, `player-focused`, `waveform-focused`, `compact-review`) are driven by CSS attributes (`data-layout="..."`) on the workspace root rather than duplicate component trees. This ensures audio engine listeners and component lifecycle remain unbroken during layout switches.
+
+### Client preview mode
+
+A distraction-free presentation view for client listening sessions. In preview mode, administrative and editing controls (metadata inputs, notes drawer, manifest export, settings) are hidden, leaving only the presentation banner, playback controls, version switcher, and waveform timeline.
+
 ## Test strategy
 
 - **Vitest + Testing Library**: pure crossfade math, validation, formatting, theme resolution, engine state machine with a fake host, and component accessibility/state behaviour. v0.2 adds deterministic coverage for operation cancellation, paused seeking, post-seek `canplay`, end-of-media pause, metadata timeout, generic MIME types, fade interruption and crossfade duration changes. v0.3 adds WAV header/peak parsing, the worker reply-port handshake, resource budgeting, waveform lifecycle, shared-duration clipping and waveform rendering states.

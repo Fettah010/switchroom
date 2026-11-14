@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
   editedInput,
+  ensureComparisonEditor,
   loadPair,
   originalInput,
   pauseButton,
@@ -241,6 +242,7 @@ test.describe('waveform and shared timeline', () => {
   }) => {
     skipAudioFlowOnWindowsWebkit();
     await page.goto('/');
+    await ensureComparisonEditor(page);
 
     // Both files are valid and playable, but 31 minutes exceeds the analysis
     // duration ceiling, so the waveforms fall back while playback stays usable.
@@ -261,14 +263,19 @@ test.describe('waveform and shared timeline', () => {
 
   test('reduced motion keeps all content visible', async ({ page }) => {
     await page.goto('/');
+    await ensureComparisonEditor(page);
 
     await page.emulateMedia({ reducedMotion: 'reduce' });
     await page.reload();
 
-    // Nothing stays hidden awaiting an animation.
+    // Nothing stays hidden awaiting an animation on home view:
     await expect(
       page.getByRole('heading', { level: 1, name: /Hear the difference/i }),
     ).toBeVisible();
+
+    await ensureComparisonEditor(page);
+
+    // And in editor view:
     await expect(page.locator('.slot__title')).toHaveText(['Original', 'Edited']);
     await expect(page.getByRole('button', { name: /Choose or drop a file/i })).toHaveCount(2);
     await expect(page.getByText(/Local-only listening/i)).toBeVisible();

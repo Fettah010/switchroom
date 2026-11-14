@@ -34,6 +34,10 @@ try {
     const page = await context.newPage();
 
     await page.goto(baseURL, { waitUntil: 'networkidle' });
+    const newBtn = page.getByRole('button', { name: 'New comparison' });
+    if (await newBtn.isVisible()) {
+      await newBtn.click();
+    }
     await page
       .getByLabel('Choose Original audio file')
       .setInputFiles('tests/e2e/fixtures/original.wav');

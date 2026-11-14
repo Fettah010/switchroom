@@ -1,6 +1,6 @@
 # Browser support and verification
 
-Last updated: 2026-11-09.
+Last updated: 2026-11-14.
 
 This page records what was actually tested. It does not label an untested browser, device or codec as supported.
 
@@ -9,9 +9,9 @@ This page records what was actually tested. It does not label an untested browse
 | Item               | Value                                                                |
 | ------------------ | -------------------------------------------------------------------- |
 | Host OS            | Windows 11 Pro, build 10.0.26300                                     |
-| Node.js            | 26.13.0 used for local verification; CI targets Node 24 via `.nvmrc` |
+| Node.js            | 26.13.1 used for local verification; CI targets Node 24 via `.nvmrc` |
 | npm                | 11.20.0                                                              |
-| Playwright         | 1.65.0                                                               |
+| Playwright         | 1.58.0+                                                              |
 | Chromium build     | Chrome for Testing 158.0.8127.18                                     |
 | Firefox build      | Firefox 159.0                                                        |
 | WebKit build       | WebKit 27.2                                                          |
@@ -19,13 +19,13 @@ This page records what was actually tested. It does not label an untested browse
 
 Playwright's Chromium and WebKit are test builds, not branded Chrome/Edge or Safari. Results below describe those engine builds on this Windows host.
 
-## Automated end-to-end results (v0.3.0)
+## Automated end-to-end results (v0.4.0)
 
-`npm run test:e2e` (Chromium gate): **34 passed**.
+`npm run test:e2e` (Chromium gate): **40 passed**.
 
-`npx playwright test --project=firefox --workers=4`: **34 passed**.
+`npx playwright test --project=firefox --workers=4`: **40 passed**.
 
-`npx playwright test --project=webkit --workers=3`: **5 passed, 29 skipped**.
+`npx playwright test --project=webkit --workers=3`: **5 passed, 35 skipped**.
 
 | Area                                                              | Chromium | Firefox | WebKit      |
 | ----------------------------------------------------------------- | -------- | ------- | ----------- |
@@ -58,21 +58,20 @@ Playwright's Chromium and WebKit are test builds, not branded Chrome/Edge or Saf
 
 \*\* This WebKit build omits links from the default Tab order (the Safari "Full Keyboard Access" behaviour). The keyboard spec detects that and skips with a message.
 
-### v0.3 additions to the matrix
+### v0.4 additions to the matrix
 
-| Area                                                    | Chromium | Firefox |
-| ------------------------------------------------------- | -------- | ------- |
-| Waveform A/B labels and two canvas rows                 | Pass     | Pass    |
-| Real non-empty pixels in both waveform canvases         | Pass     | Pass    |
-| Shared-axis click-to-seek at 50 %, 25 % and 70 %        | Pass     | Pass    |
-| Mismatch clipped to the shared common duration          | Pass     | Pass    |
-| Waveform fallback keeps audio usable                    | Pass     | Pass    |
-| Playhead and timeline slider stay in sync               | Pass     | Pass    |
-| Entrance/reveal motion + reduced-motion visibility      | Pass     | Pass    |
-| Slider fill terminates at the thumb centre (0/50/100 %) | Pass     | Pass    |
-| Play/Pause geometry stability across states             | Pass     | Pass    |
+| Area                                                                         | Chromium | Firefox |
+| ---------------------------------------------------------------------------- | -------- | ------- |
+| Home view launchpad & empty state with New comparison creation               | Pass     | Pass    |
+| Workspace metadata editing (title, desc, notes, labels) & IndexedDB save     | Pass     | Pass    |
+| Reopen workspace and truthful relinking notice with file descriptor match    | Pass     | Pass    |
+| 4 Presentation layout switches (`standard`, `player`, `waveform`, `compact`) | Pass     | Pass    |
+| Client preview mode entrance and exit with local-only banner                 | Pass     | Pass    |
+| Portable manifest export (`.switchroom.json`) with zero binary payloads      | Pass     | Pass    |
+| Settings dialog (theme, motion, default crossfade, default layout, clear)    | Pass     | Pass    |
+| Assert zero private data or audio payloads leave the browser                 | Pass     | Pass    |
 
-Unit/component suite: **185 tests passed** (Vitest, 14 files).
+Unit/component suite: **223 tests passed** (Vitest, 21 files).
 
 The v0.3.0 production build passed the automated preview smoke check and then the same check against the public deployment at <https://switchroom.ftallfettah.workers.dev> (version `e31cbcbf-6c57-4243-bab8-9141548b2b76`). That check verifies the production title, privacy statement, absence of the development hook, footer version, local WAV loading, duration, both waveform lanes reaching ready and painting real ink, playback progress, A/B switching and pause state. It does not replace a human listening pass.
 
