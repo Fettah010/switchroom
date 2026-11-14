@@ -12,8 +12,10 @@
  */
 import { chromium } from '@playwright/test';
 import assert from 'node:assert/strict';
-import { mkdir } from 'node:fs/promises';
+import { mkdir, readFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
+
+const pkg = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8'));
 
 // Vite preview prints and binds `localhost`, which may resolve to IPv6 only on
 // some Windows hosts; use the same host name so the default check just works.
@@ -39,7 +41,7 @@ try {
   await page.goto(baseURL, { waitUntil: 'networkidle' });
 
   assert.match(await page.title(), /Switchroom/);
-  assert.equal(await page.locator('.site-footer__version').textContent(), 'v0.4.0');
+  assert.equal(await page.locator('.site-footer__version').textContent(), `v${pkg.version}`);
 
   // Home page has New comparison button
   const newComparisonBtn = page.getByRole('button', { name: 'New comparison' });
