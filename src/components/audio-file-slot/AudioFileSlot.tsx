@@ -7,6 +7,7 @@ import { formatTime } from '../../audio/timeFormatting';
 import { usePlayer } from '../../hooks/usePlayer';
 import type { WaveformService } from '../../waveform/waveformTypes';
 import type { MediaDescriptor } from '../../workspaces/workspaceTypes';
+import { setLoadedFile } from '../../audio/mediaFileRegistry';
 
 const SLOT_COPY: Record<
   AudioVersion,
@@ -107,8 +108,11 @@ export function AudioFileSlot({
       waveformService.loadFile(result.ok ? file : null);
     }
 
-    if (result.ok && onFileLoaded) {
-      onFileLoaded(file);
+    if (result.ok) {
+      setLoadedFile(version, file);
+      if (onFileLoaded) {
+        onFileLoaded(file);
+      }
     }
   }
 
@@ -152,6 +156,7 @@ export function AudioFileSlot({
     if (readOnly) return;
     setSelectionError(null);
     setMismatchWarning(null);
+    setLoadedFile(version, null);
     engine.removeFile(version);
 
     if (waveformService) {

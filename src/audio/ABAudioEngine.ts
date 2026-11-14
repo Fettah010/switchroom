@@ -240,6 +240,52 @@ export class ABAudioEngine {
     return validation;
   }
 
+  loadRemoteUrl(version: AudioVersion, url: string, fileName: string, fileSize?: number): void {
+    if (this.disposed) {
+      return;
+    }
+
+    const deck = this.decks[version];
+
+    this.invalidateTransport();
+    this.settleOnAudibleVersion();
+    this.haltPlayback();
+    this.hasStarted = false;
+    this.releaseDeckMedia(deck);
+
+    deck.info = { ...deck.info, duration: null, ready: false, loading: true, error: null };
+    this.applySeek(0, false);
+
+    deck.url = url;
+    deck.generation += 1;
+    const generation = deck.generation;
+
+    deck.info = {
+      fileName,
+      fileSize: fileSize ?? null,
+      extension: getFileExtension(fileName),
+      duration: null,
+      ready: false,
+      loading: true,
+      error: null,
+      warning: null,
+    };
+
+    this.attachLoadListeners(deck, generation);
+    this.snapshot = { ...this.snapshot, globalError: null };
+    this.interrupted = false;
+    this.refresh();
+    this.emitTime(0);
+
+    try {
+      deck.element.src = url;
+      deck.element.load();
+    } catch (error) {
+      this.failDeck(deck, generation, 'This cloud track could not be opened.');
+      this.logger('media load threw', error);
+    }
+  }
+
   removeFile(version: AudioVersion): void {
     if (this.disposed) {
       return;
@@ -1425,7 +1471,9 @@ export class ABAudioEngine {
     deck.element.load();
 
     if (deck.url) {
-      this.host.revokeObjectURL(deck.url);
+      if (deck.url.startsWith('blob:')) {
+        this.host.revokeObjectURL(deck.url);
+      }
       deck.url = null;
     }
 
@@ -1453,7 +1501,9 @@ export class ABAudioEngine {
     deck.element.load();
 
     if (deck.url) {
-      this.host.revokeObjectURL(deck.url);
+      if (deck.url.startsWith('blob:')) {
+        this.host.revokeObjectURL(deck.url);
+      }
       deck.url = null;
     }
   }

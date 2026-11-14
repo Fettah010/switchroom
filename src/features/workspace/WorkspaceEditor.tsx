@@ -1,6 +1,7 @@
-import { ArrowLeft, Download, Eye, Settings as SettingsIcon } from 'lucide-react';
+import { ArrowLeft, Cloud, Download, Eye, Settings as SettingsIcon } from 'lucide-react';
 import { useWorkspace } from '../../hooks/useWorkspace';
 import { usePlayer } from '../../hooks/usePlayer';
+import { useCloudProjects } from '../cloud/useCloudProjects';
 import { ComparisonWorkspace } from '../comparison/ComparisonWorkspace';
 import { RelinkMediaNotice } from './RelinkMediaNotice';
 import { WorkspaceMetadataEditor } from './WorkspaceMetadataEditor';
@@ -15,6 +16,7 @@ export function WorkspaceEditor() {
     updateMediaDescriptor,
   } = useWorkspace();
   const { snapshot } = usePlayer();
+  const { setIsCloudSaveOpen } = useCloudProjects();
 
   if (!activeWorkspace) {
     return null;
@@ -37,6 +39,16 @@ export function WorkspaceEditor() {
         </button>
 
         <div className="workspace-editor__toolbar-actions">
+          <button
+            type="button"
+            className="secondary-btn"
+            onClick={() => setIsCloudSaveOpen(true)}
+            title="Save this comparison to private cloud storage"
+          >
+            <Cloud size={15} aria-hidden="true" />
+            <span>Save to cloud</span>
+          </button>
+
           <button
             type="button"
             className="secondary-btn"

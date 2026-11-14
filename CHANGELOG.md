@@ -2,6 +2,32 @@
 
 All notable changes to Switchroom are recorded here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses [Semantic Versioning](https://semver.org/).
 
+## [0.5.0] — 2026-11-14
+
+### Added
+
+- **Private cloud projects:** creators can explicitly choose **Save to cloud** to store A/B comparisons in a private, encrypted Cloudflare R2 bucket without proxying audio bytes through the Worker.
+- **Direct browser-to-R2 upload:** short-lived S3-compatible SigV4 presigned PUT URLs (`aws4fetch`) allowing browser-direct uploads with zero audio byte proxying.
+- **Server-side completion verification:** authoritative Cloudflare R2 `HEAD` check verifying object existence, exact byte size, and media MIME family before marking assets ready.
+- **High-entropy Guest Creator capability:** guest mode creates private cloud projects with a cryptographically secure 256-bit owner capability (`sw_owner_<hex>`), stored only as a SHA-256 hash in D1.
+- **Secure one-time recovery link:** one-time URL fragment `#owner=<secret>&project=<id>` displayed upon guest project creation; on load, the secret is exchanged for an `HttpOnly`, `SameSite=Lax` project cookie and immediately scrubbed from browser history and the URL bar via `history.replaceState`.
+- **Creator accounts via Better Auth:** optional sign-in with GitHub and Google integrated with Cloudflare D1 (gracefully hidden when OAuth env vars are not configured).
+- **Private creator dashboard:** modal view listing cloud projects, asset statuses (`pending`, `uploading`, `ready`, `failed`), retention countdown, open in editor, and delete actions.
+- **Streamed cloud playback:** owner-authorized temporary presigned GET URLs streamed directly into `ABAudioEngine` with HTTP Range support for instant comparison without re-downloading entire files.
+- **Retention presets:** customizable retention of 1, 7, 14, 30, 60, or 90 days (default: 30 days) with remaining time countdown.
+- **100 MB per-file quota enforcement:** centralized quota policy strictly enforced in client preflight, upload session initialization, and server-side verification.
+- **Local dev mock storage:** `/api/dev-r2-mock/:key` supporting both PUT uploads and GET range requests for offline local development and test automation without requiring cloud credentials.
+
+### Preserved
+
+- **100% Offline local-first experience:** local A/B comparison continues to function completely offline with zero login, zero network, and zero cloud backend required.
+
+### Verified
+
+- 242 Vitest unit and integration tests passing across 26 test files.
+- 45 Playwright E2E tests passing in Chromium and Firefox.
+- Zero TypeScript, ESLint, or Prettier errors.
+
 ## [0.4.0] — 2026-11-14
 
 ### Added

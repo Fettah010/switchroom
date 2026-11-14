@@ -94,3 +94,26 @@ centreline, hidden progress tint and usable Play button.
 Gate after the fix: `format:check`, `lint`, `typecheck`, 185 Vitest tests, 34
 Chromium and 34 Firefox Playwright specs, WebKit 5 pass / 29 skip, production build,
 preview smoke and public smoke all pass.
+
+## v0.4 Implementation Log — COMPLETE
+
+- Added local-only workspace management in IndexedDB (`idb-keyval`).
+- JSON manifest export/import (`.switchroom.json`) with strict schema validation.
+- Four presentation layouts (standard, player-focused, waveform-focused, compact-review).
+- Client presentation preview mode with read-only controls and local privacy reminder.
+- Settings modal for default preferences, layout selection, and emergency local data clear.
+- Re-linking UI for local file handles on workspace reload.
+- Zero network requests, zero remote persistence.
+- Verified with 230 unit tests and 40 Chromium / Firefox E2E specs.
+
+## v0.5.0 Implementation Log — COMPLETE
+
+- Private cloud projects with direct Cloudflare R2 presigned PUT/GET uploads.
+- Cloudflare Workers + Hono API routes (`/api/projects`, `/api/uploads`, `/api/assets`, `/api/auth`).
+- Optional creator authentication via Better Auth (D1 / SQLite adapter, GitHub & Google OAuth).
+- Anonymous guest workflows with cryptographically secure capability recovery URLs (`#owner=...&project=...`).
+- Zero proxying of audio data through the Worker; bytes transfer direct from client browser to R2.
+- Local storage only holds opaque project IDs and titles; raw capability secrets are never persisted in localStorage or D1.
+- Strict upload quotas (100 MB max per file, 1–90 days retention, 2 assets per project).
+- Local-first architecture preserved: 100% functional offline without cloud or login.
+- Verified with 242 unit tests, 45 Chromium Playwright specs, 45 Firefox Playwright specs, and 0 lint/typecheck errors.

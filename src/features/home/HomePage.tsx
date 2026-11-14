@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
-import { AlertCircle, FileUp, Plus, Settings as SettingsIcon } from 'lucide-react';
+import { AlertCircle, Cloud, FileUp, Plus, Settings as SettingsIcon } from 'lucide-react';
 import { useWorkspace } from '../../hooks/useWorkspace';
+import { useCloudProjects } from '../cloud/useCloudProjects';
 import { Hero } from '../../components/layout/Hero';
 import { RecentWorkspaces } from './RecentWorkspaces';
 
@@ -15,6 +16,7 @@ export function HomePage() {
     importManifest,
     setIsSettingsOpen,
   } = useWorkspace();
+  const { setIsDashboardOpen } = useCloudProjects();
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [importError, setImportError] = useState<string | null>(null);
@@ -49,6 +51,16 @@ export function HomePage() {
           >
             <FileUp size={16} aria-hidden="true" />
             <span>Import manifest</span>
+          </button>
+
+          <button
+            type="button"
+            className="secondary-btn"
+            onClick={() => setIsDashboardOpen(true)}
+            title="Open private cloud projects dashboard"
+          >
+            <Cloud size={16} aria-hidden="true" />
+            <span>Cloud projects</span>
           </button>
 
           <input

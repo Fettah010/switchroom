@@ -10,36 +10,31 @@ Your audio never leaves the browser. There is no account, no upload, no backend 
 
 ## Project status
 
-v0.4.0 is publicly deployed at <https://switchroom.ftallfettah.workers.dev> and smoke-tested against that URL. The automated suite passes in Chromium and Firefox; WebKit on Windows skips audio-dependent specs because that build does not decode local audio in this environment. The only human listening pass on record is from v0.1.0 in Microsoft Edge on Windows 11 with WAV files; see [Browser support](docs/browser-support.md) for the exact matrix, manual checks, and listening record.
+v0.5.0 is ready with private cloud persistence, direct R2 uploads, and optional creator accounts, alongside the complete local-first comparison experience. Automated test suites pass across Chromium and Firefox. See [Cloud Architecture](docs/cloud-architecture.md) and [Browser support](docs/browser-support.md).
 
-## What v0.4 does
+## What v0.5 does
 
-Everything in v0.3, plus:
+Everything in v0.4, plus:
 
-- **Local workspaces:** persistent comparison metadata stored locally in IndexedDB (`switchroom-local`, version 1). Save comparison titles, descriptions, internal review notes, tags/labels, presentation layouts, and custom crossfade durations across browser reloads.
-- **Strict local-first privacy:** zero audio bytes, decoded PCM buffers, waveform peaks, or filesystem paths are ever persisted. The browser memory holds audio only during active sessions.
-- **Truthful reopening & relinking UX:** upon reloading or reopening a workspace, Switchroom remembers your exact configuration, labels, notes, and preferred crossfade, displaying clear descriptors of the required files so you can reselect them and resume listening in seconds.
-- **Portable JSON manifest (`.switchroom.json`) import/export:** export any comparison configuration as a portable JSON file (strictly validated, max 1 MiB, version 1); import manifests into any Switchroom browser without uploading to any server.
-- **4 Presentation layouts:** switch seamlessly between `standard` (balanced player and waveforms), `player-focused` (dominant transport and switch controls), `waveform-focused` (deep multi-lane waveform timeline), and `compact-review` (dense review layout).
-- **Local client preview mode:** presentation view for client listening sessions, featuring a clear "Local presentation preview — audio stays on this device" banner and a single-click exit button.
-- **Comprehensive settings panel:** manage theme preferences, interface motion preferences, default crossfade duration, default presentation layout, and one-click local data clearing with explicit confirmation.
-- **Recent comparisons home view:** a clean launchpad showing saved local comparison cards with quick open, manifest export, and delete actions.
+- **Private cloud projects:** creators can explicitly choose **Save to cloud** to store A/B comparisons in a private, encrypted Cloudflare R2 bucket without proxying audio bytes through the Worker.
+- **Direct browser-to-R2 upload:** short-lived S3-compatible SigV4 presigned PUT URLs (`aws4fetch`) allowing browser-direct uploads with zero audio byte proxying.
+- **Server-side completion verification:** authoritative Cloudflare R2 `HEAD` check verifying object existence, exact byte size, and media MIME family before marking assets ready.
+- **High-entropy Guest Creator capability:** guest mode creates private cloud projects with a cryptographically secure 256-bit owner capability (`sw_owner_<hex>`), stored only as a SHA-256 hash in D1.
+- **Secure one-time recovery link:** one-time URL fragment `#owner=<secret>&project=<id>` displayed upon guest project creation; on load, the secret is exchanged for an `HttpOnly`, `SameSite=Lax` project cookie and immediately scrubbed from browser history and the URL bar via `history.replaceState`.
+- **Creator accounts via Better Auth:** optional sign-in with GitHub and Google integrated with Cloudflare D1 (gracefully hidden when OAuth env vars are not configured).
+- **Private creator dashboard:** modal view listing cloud projects, asset statuses (`pending`, `uploading`, `ready`, `failed`), retention countdown, open in editor, and delete actions.
+- **Streamed cloud playback:** owner-authorized temporary presigned GET URLs streamed directly into `ABAudioEngine` with HTTP Range support for instant comparison without re-downloading entire files.
+- **Retention presets:** customizable retention of 1, 7, 14, 30, 60, or 90 days (default: 30 days) with remaining time countdown.
+- **100 MB per-file quota enforcement:** centralized quota policy strictly enforced in client preflight, upload session initialization, and server-side verification.
+- **Strict scope boundaries:** No client sharing (`/api/share/*`), public review pages, comments, client downloads, or cron purges are in v0.5.0 (scheduled for v0.6–v0.9).
 
-No remote sharing links, cloud accounts, remote comments, cloud databases, or audio file uploads exist; Switchroom remains strictly local-first.
+## Privacy and Offline Guarantees
 
-## Privacy
+**Local comparison continues to work 100% offline with zero login, zero network, and zero cloud backend required.**
 
-**Local-only listening. Your audio stays in this browser. Switchroom does not upload or store your files.**
-
-How that is enforced:
-
-- Files are read through the browser's `File` API and played from in-memory object URLs.
-- Waveform peaks are derived in memory and never uploaded, persisted or sent to a server.
-- Workspace metadata (titles, notes, labels, preferences) is persisted only in your browser's private IndexedDB database (`switchroom-local`).
-- No audio file blobs, decoded PCM, or local filesystem paths are stored in IndexedDB or exported in manifests.
-- Nothing is sent to a server. The production build has no API, no backend account system, no cloud storage, and no tracking or analytics.
-- Object URLs are revoked when a file is replaced, removed, fails to load, or the app is closed.
-- The manual theme choice is kept in `localStorage` (`switchroom.theme`) for instantaneous, flash-free pre-render.
+- When using local comparisons, files are read through the browser's `File` API and played from in-memory object URLs. No audio or metadata is sent to any server.
+- Cloud saves require an explicit, user-initiated action. Switchroom never automatically uploads your audio.
+- In cloud mode, audio files are stored in your private R2 bucket with object keys containing opaque random UUIDs—never user filenames or predictable paths.
 
 ## Supported files and codecs
 

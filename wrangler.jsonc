@@ -1,10 +1,28 @@
 {
   "$schema": "./node_modules/wrangler/config-schema.json",
   "name": "switchroom",
+  "main": "worker/index.ts",
   "compatibility_date": "2026-11-08",
+  "compatibility_flags": ["nodejs_compat"],
   "assets": {
+    "directory": "./dist",
+    "binding": "ASSETS",
     "not_found_handling": "single-page-application",
   },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "switchroom-db",
+      "database_id": "local-switchroom-db-id",
+      "migrations_dir": "worker/migrations",
+    },
+  ],
+  "r2_buckets": [
+    {
+      "binding": "AUDIO_BUCKET",
+      "bucket_name": "switchroom-audio",
+    },
+  ],
   "observability": {
     "enabled": true,
   },

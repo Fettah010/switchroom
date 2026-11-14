@@ -180,6 +180,41 @@ The 4 layouts (`standard`, `player-focused`, `waveform-focused`, `compact-review
 
 A distraction-free presentation view for client listening sessions. In preview mode, administrative and editing controls (metadata inputs, notes drawer, manifest export, settings) are hidden, leaving only the presentation banner, playback controls, version switcher, and waveform timeline.
 
+## v0.5.0: Private Cloud Projects and Creator Accounts
+
+### Direct R2 presigned PUTs vs. proxying through Worker
+
+Audio stems can be up to 100 MB each. Proxying audio binaries through the Cloudflare Worker CPU/memory would:
+
+1. Incur unnecessary CPU wall-time and memory pressure on Worker isolates.
+2. Introduce latency and potential timeout failures during high-bandwidth uploads.
+3. Compromise the core privacy guarantee by putting raw audio bytes inside Worker memory.
+
+Instead, the Worker generates AWS S3-compatible presigned PUT URLs for Cloudflare R2 using `aws4fetch`. The browser uploads audio bytes directly to R2. On upload completion, the client triggers a completion hook where the Worker verifies the object size and existence via a lightweight R2 `HEAD` request before activating the asset in D1.
+
+### Capability-based guest authorization
+
+To keep Switchroom frictionless and privacy-first, creators can create cloud projects without creating an account:
+
+1. A cryptographically random 256-bit token is generated in the Worker (`sw_owner_<hex>`).
+2. Only the SHA-256 hash of this capability token is stored in the D1 database (`owner_hash`).
+3. The raw secret is returned to the creator once and included in the URL fragment (`#owner=...&project=...`).
+4. The client browser immediately strips the hash from the address bar via `history.replaceState` to prevent leakage in browser history or referrer headers.
+5. Project recovery in localStorage stores only the opaque project ID and title — never the raw capability token.
+
+### Better Auth with D1 / SQLite adapter
+
+When creators choose to log in, Switchroom supports Better Auth with GitHub and Google OAuth, backed by Cloudflare D1. Authenticated users can claim previously created guest projects using the project ID and capability proof, associating them with their permanent user ID.
+
+### Strict quotas and lifecycle
+
+Cloud projects are subject to strict resource quotas:
+
+- 100 MB max per audio file.
+- Retention presets: 1, 7, 14, 30, 60, or 90 days (default: 30 days).
+- Max 2 audio assets per project (strictly role `original` and `edited`).
+- No public client review links or comment systems in v0.5.0 (reserved for v0.6.0+).
+
 ## Test strategy
 
 - **Vitest + Testing Library**: pure crossfade math, validation, formatting, theme resolution, engine state machine with a fake host, and component accessibility/state behaviour. v0.2 adds deterministic coverage for operation cancellation, paused seeking, post-seek `canplay`, end-of-media pause, metadata timeout, generic MIME types, fade interruption and crossfade duration changes. v0.3 adds WAV header/peak parsing, the worker reply-port handshake, resource budgeting, waveform lifecycle, shared-duration clipping and waveform rendering states.
