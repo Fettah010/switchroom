@@ -63,6 +63,7 @@ export interface MediaErrorLike {
 
 export interface AudioElementLike extends EventTarget {
   src: string;
+  crossOrigin: string | null;
   preload: string;
   currentTime: number;
   readonly duration: number;

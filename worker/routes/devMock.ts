@@ -64,10 +64,17 @@ devMockRoute.get('/dev-r2-mock/:key', async (c) => {
   headers.set('ETag', obj.httpEtag || 'mock-etag');
 
   if (range && obj.range) {
-    headers.set(
-      'Content-Range',
-      `bytes ${obj.range.offset}-${obj.range.offset + obj.size - 1}/${obj.size}`,
-    );
+    const start = obj.range.offset ?? 0;
+    const length =
+      'length' in obj.range && typeof obj.range.length === 'number'
+        ? obj.range.length
+        : obj.size - start;
+    const end = Math.min(start + length - 1, obj.size - 1);
+    const contentLength = Math.max(0, end - start + 1);
+
+    headers.set('Content-Range', `bytes ${start}-${end}/${obj.size}`);
+    headers.set('Content-Length', contentLength.toString());
+
     return new Response(obj.body as unknown as BodyInit, {
       status: 206,
       headers,

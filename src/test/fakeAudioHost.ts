@@ -65,6 +65,7 @@ class FakeMediaElementSource implements MediaElementSourceLike {
 
 export class FakeAudioElement extends EventTarget implements AudioElementLike {
   src = '';
+  crossOrigin: string | null = null;
   preload = 'metadata';
   paused = true;
   duration = Number.NaN;

@@ -278,6 +278,7 @@ export class ABAudioEngine {
     this.emitTime(0);
 
     try {
+      deck.element.crossOrigin = 'anonymous';
       deck.element.src = url;
       deck.element.load();
     } catch (error) {
@@ -1498,6 +1499,7 @@ export class ABAudioEngine {
     this.cleanupLoad(deck);
     deck.element.pause();
     deck.element.removeAttribute('src');
+    deck.element.removeAttribute('crossorigin');
     deck.element.load();
 
     if (deck.url) {
