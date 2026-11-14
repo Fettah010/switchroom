@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { AlertCircle, Cloud, FileUp, Plus, Settings as SettingsIcon } from 'lucide-react';
+import { AlertCircle, Cloud, FileUp, Plus } from 'lucide-react';
 import { useWorkspace } from '../../hooks/useWorkspace';
 import { useCloudProjects } from '../cloud/useCloudProjects';
 import { Hero } from '../../components/layout/Hero';
@@ -14,7 +14,6 @@ export function HomePage() {
     exportManifest,
     deleteWorkspace,
     importManifest,
-    setIsSettingsOpen,
   } = useWorkspace();
   const { setIsDashboardOpen } = useCloudProjects();
 
@@ -72,16 +71,6 @@ export function HomePage() {
             onChange={handleFileSelected}
           />
         </div>
-
-        <button
-          type="button"
-          className="icon-btn"
-          onClick={() => setIsSettingsOpen(true)}
-          aria-label="Open settings"
-          title="Settings"
-        >
-          <SettingsIcon size={18} aria-hidden="true" />
-        </button>
       </div>
 
       {importError && (

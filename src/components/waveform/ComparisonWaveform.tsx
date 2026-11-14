@@ -217,8 +217,16 @@ export function ComparisonWaveform({ original, edited }: ComparisonWaveformProps
       {originalView.fileName || editedView.fileName ? (
         <div className="waveform__body">
           <div className="waveform__labels" aria-hidden="true">
-            <span className="waveform__label">A</span>
-            <span className="waveform__label">B</span>
+            <span
+              className={`waveform__label ${snapshot.activeVersion === 'original' ? 'waveform__label--active' : ''}`}
+            >
+              A
+            </span>
+            <span
+              className={`waveform__label ${snapshot.activeVersion === 'edited' ? 'waveform__label--active' : ''}`}
+            >
+              B
+            </span>
           </div>
 
           <div
@@ -235,15 +243,23 @@ export function ComparisonWaveform({ original, edited }: ComparisonWaveformProps
               <WaveformCanvas
                 peaks={originalPeaks}
                 height={ROW_HEIGHT}
-                colorVariable="--waveform-fill-original"
-                active={snapshot.audibleVersion === 'original'}
+                colorVariable={
+                  snapshot.activeVersion === 'original'
+                    ? '--waveform-fill-active'
+                    : '--waveform-fill-inactive'
+                }
+                active={snapshot.activeVersion === 'original'}
                 visibleFraction={originalFraction}
               />
               <WaveformCanvas
                 peaks={editedPeaks}
                 height={ROW_HEIGHT}
-                colorVariable="--waveform-fill-edited"
-                active={snapshot.audibleVersion === 'edited'}
+                colorVariable={
+                  snapshot.activeVersion === 'edited'
+                    ? '--waveform-fill-active'
+                    : '--waveform-fill-inactive'
+                }
+                active={snapshot.activeVersion === 'edited'}
                 visibleFraction={editedFraction}
               />
             </div>

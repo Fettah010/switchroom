@@ -2,6 +2,19 @@
 
 All notable changes to Switchroom are recorded here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses [Semantic Versioning](https://semver.org/).
 
+## [0.5.1] — 2026-11-14
+
+### Fixed
+
+- **Active track waveform color:** the waveform row for the active recording now lights up in vibrant lime green (`--accent`), automatically switching between Track A (Original) and Track B (Edited) when toggled in the version switcher.
+- **Text contrast on lime buttons:** fixed hover, focus, and mobile tap states on active version switcher tabs, project card **Open** buttons, and primary action buttons so text remains dark (`var(--accent-contrast)` / charcoal) instead of washing out to white on lime.
+- **RFC 7233 audio streaming headers:** corrected `Content-Range` byte offset calculations and added explicit `Content-Length` headers on `206 Partial Content` responses, resolving `MEDIA_ERR_NETWORK` errors when streaming audio to mobile and cross-device clients.
+- **Web Audio CORS compatibility:** added `crossOrigin = 'anonymous'` in `ABAudioEngine.loadRemoteUrl` to ensure remote audio streams comply with browser audio context security boundaries.
+- **Removed duplicate settings triggers:** removed redundant settings gear buttons from `HomePage` and `WorkspaceEditor`, keeping the top bar settings button as the single source of truth.
+- **Project card layout & button sizing:** vertically centered the date badge in comparison cards, normalized all project card actions (`Open`, `Export`, `Delete`) to a uniform 36 px height, and matched launchpad actions (`+ New comparison`, `Import manifest`, `Cloud projects`) to equal 42 px dimensions.
+- **Smooth project details animation:** replaced abrupt layout pop with a fluid CSS grid drawer transition (`0fr` to `1fr`), smoothly animating expansion and collapse without shifting content suddenly.
+- **Mobile responsiveness:** improved small-screen layouts with full-width stacked launchpad actions, balanced project card action grids, and fluid toolbars down to 360 px viewports.
+
 ## [0.5.0] — 2026-11-14
 
 ### Added

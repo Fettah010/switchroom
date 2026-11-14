@@ -38,8 +38,10 @@
   --range-focus: var(--focus);
   --range-disabled-opacity: 0.45;
 
-  --waveform-fill-original: var(--accent);
-  --waveform-fill-edited: var(--text-secondary);
+  --waveform-fill-active: var(--accent);
+  --waveform-fill-inactive: var(--text-secondary);
+  --waveform-fill-original: var(--waveform-fill-active);
+  --waveform-fill-edited: var(--waveform-fill-inactive);
   --waveform-playhead: var(--accent-strong);
   --waveform-progress: var(--accent-soft);
   --waveform-bg: var(--surface-sunken);
@@ -86,8 +88,10 @@
   --range-focus: var(--focus);
   --range-disabled-opacity: 0.45;
 
-  --waveform-fill-original: var(--accent);
-  --waveform-fill-edited: color-mix(in srgb, var(--text) 48%, transparent);
+  --waveform-fill-active: var(--accent);
+  --waveform-fill-inactive: color-mix(in srgb, var(--text) 48%, transparent);
+  --waveform-fill-original: var(--waveform-fill-active);
+  --waveform-fill-edited: var(--waveform-fill-inactive);
   --waveform-playhead: var(--accent-strong);
   --waveform-progress: var(--accent-soft);
   --waveform-bg: var(--surface-sunken);

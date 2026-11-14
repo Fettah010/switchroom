@@ -111,117 +111,123 @@ export function WorkspaceMetadataEditor({ workspace }: { workspace: WorkspaceRec
         </div>
       </div>
 
-      {isExpanded && (
-        <div id="metadata-editor-details" className="metadata-editor__details">
-          <div className="metadata-editor__grid">
-            <div className="metadata-editor__field">
-              <label htmlFor="workspace-desc" className="metadata-editor__label">
-                Description
-              </label>
-              <textarea
-                id="workspace-desc"
-                className="metadata-editor__textarea"
-                rows={2}
-                placeholder="Notes for client or review context…"
-                value={workspace.description}
-                maxLength={MAX_DESCRIPTION_LENGTH}
-                onChange={handleDescriptionChange}
-              />
-              <span className="metadata-editor__char-count">
-                {workspace.description.length} / {MAX_DESCRIPTION_LENGTH}
-              </span>
-            </div>
-
-            <div className="metadata-editor__field">
-              <label htmlFor="workspace-notes" className="metadata-editor__label">
-                Internal notes
-              </label>
-              <textarea
-                id="workspace-notes"
-                className="metadata-editor__textarea"
-                rows={2}
-                placeholder="Checklist, mixing decisions or private notes…"
-                value={workspace.notes}
-                maxLength={MAX_NOTES_LENGTH}
-                onChange={handleNotesChange}
-              />
-              <span className="metadata-editor__char-count">
-                {workspace.notes.length} / {MAX_NOTES_LENGTH}
-              </span>
-            </div>
-          </div>
-
-          <div className="metadata-editor__bottom-row">
-            <div className="metadata-editor__labels-field">
-              <label htmlFor="new-label-input" className="metadata-editor__label">
-                <Tag size={13} aria-hidden="true" />
-                <span>
-                  Labels ({workspace.labels.length}/{MAX_LABELS_COUNT})
+      <div
+        id="metadata-editor-details"
+        className={`metadata-editor__drawer ${isExpanded ? 'metadata-editor__drawer--open' : ''}`}
+        aria-hidden={!isExpanded}
+      >
+        <div className="metadata-editor__drawer-inner">
+          <div className="metadata-editor__details">
+            <div className="metadata-editor__grid">
+              <div className="metadata-editor__field">
+                <label htmlFor="workspace-desc" className="metadata-editor__label">
+                  Description
+                </label>
+                <textarea
+                  id="workspace-desc"
+                  className="metadata-editor__textarea"
+                  rows={2}
+                  placeholder="Notes for client or review context…"
+                  value={workspace.description}
+                  maxLength={MAX_DESCRIPTION_LENGTH}
+                  onChange={handleDescriptionChange}
+                />
+                <span className="metadata-editor__char-count">
+                  {workspace.description.length} / {MAX_DESCRIPTION_LENGTH}
                 </span>
-              </label>
+              </div>
 
-              <div className="metadata-editor__labels-list">
-                {workspace.labels.map((label) => (
-                  <span key={label} className="metadata-editor__chip">
-                    <span>{label}</span>
-                    <button
-                      type="button"
-                      className="metadata-editor__chip-remove"
-                      aria-label={`Remove label ${label}`}
-                      onClick={() => handleRemoveLabel(label)}
-                    >
-                      <X size={12} aria-hidden="true" />
-                    </button>
-                  </span>
-                ))}
-
-                {workspace.labels.length < MAX_LABELS_COUNT && (
-                  <div className="metadata-editor__add-label-wrap">
-                    <input
-                      id="new-label-input"
-                      type="text"
-                      className="metadata-editor__label-input"
-                      placeholder="Add label…"
-                      value={newLabelInput}
-                      maxLength={MAX_LABEL_LENGTH}
-                      onChange={(e) => setNewLabelInput(e.target.value)}
-                      onKeyDown={handleLabelKeyDown}
-                    />
-                    <button
-                      type="button"
-                      className="metadata-editor__add-label-btn"
-                      onClick={handleAddLabel}
-                      disabled={!newLabelInput.trim()}
-                    >
-                      Add
-                    </button>
-                  </div>
-                )}
+              <div className="metadata-editor__field">
+                <label htmlFor="workspace-notes" className="metadata-editor__label">
+                  Internal notes
+                </label>
+                <textarea
+                  id="workspace-notes"
+                  className="metadata-editor__textarea"
+                  rows={2}
+                  placeholder="Checklist, mixing decisions or private notes…"
+                  value={workspace.notes}
+                  maxLength={MAX_NOTES_LENGTH}
+                  onChange={handleNotesChange}
+                />
+                <span className="metadata-editor__char-count">
+                  {workspace.notes.length} / {MAX_NOTES_LENGTH}
+                </span>
               </div>
             </div>
 
-            <div className="metadata-editor__crossfade-field">
-              <span className="metadata-editor__label">
-                Workspace crossfade: {workspace.preferredCrossfadeMs} ms
-              </span>
-              <RangeControl
-                value={workspace.preferredCrossfadeMs}
-                progress={
-                  (workspace.preferredCrossfadeMs - MIN_CROSSFADE_MS) /
-                  (MAX_CROSSFADE_MS - MIN_CROSSFADE_MS)
-                }
-                min={MIN_CROSSFADE_MS}
-                max={MAX_CROSSFADE_MS}
-                step={20}
-                aria-label="Preferred crossfade duration for this workspace"
-                onChange={(e) =>
-                  updateActiveWorkspace({ preferredCrossfadeMs: Number(e.target.value) })
-                }
-              />
+            <div className="metadata-editor__bottom-row">
+              <div className="metadata-editor__labels-field">
+                <label htmlFor="new-label-input" className="metadata-editor__label">
+                  <Tag size={13} aria-hidden="true" />
+                  <span>
+                    Labels ({workspace.labels.length}/{MAX_LABELS_COUNT})
+                  </span>
+                </label>
+
+                <div className="metadata-editor__labels-list">
+                  {workspace.labels.map((label) => (
+                    <span key={label} className="metadata-editor__chip">
+                      <span>{label}</span>
+                      <button
+                        type="button"
+                        className="metadata-editor__chip-remove"
+                        aria-label={`Remove label ${label}`}
+                        onClick={() => handleRemoveLabel(label)}
+                      >
+                        <X size={12} aria-hidden="true" />
+                      </button>
+                    </span>
+                  ))}
+
+                  {workspace.labels.length < MAX_LABELS_COUNT && (
+                    <div className="metadata-editor__add-label-wrap">
+                      <input
+                        id="new-label-input"
+                        type="text"
+                        className="metadata-editor__label-input"
+                        placeholder="Add label…"
+                        value={newLabelInput}
+                        maxLength={MAX_LABEL_LENGTH}
+                        onChange={(e) => setNewLabelInput(e.target.value)}
+                        onKeyDown={handleLabelKeyDown}
+                      />
+                      <button
+                        type="button"
+                        className="metadata-editor__add-label-btn"
+                        onClick={handleAddLabel}
+                        disabled={!newLabelInput.trim()}
+                      >
+                        Add
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="metadata-editor__crossfade-field">
+                <span className="metadata-editor__label">
+                  Workspace crossfade: {workspace.preferredCrossfadeMs} ms
+                </span>
+                <RangeControl
+                  value={workspace.preferredCrossfadeMs}
+                  progress={
+                    (workspace.preferredCrossfadeMs - MIN_CROSSFADE_MS) /
+                    (MAX_CROSSFADE_MS - MIN_CROSSFADE_MS)
+                  }
+                  min={MIN_CROSSFADE_MS}
+                  max={MAX_CROSSFADE_MS}
+                  step={20}
+                  aria-label="Preferred crossfade duration for this workspace"
+                  onChange={(e) =>
+                    updateActiveWorkspace({ preferredCrossfadeMs: Number(e.target.value) })
+                  }
+                />
+              </div>
             </div>
           </div>
         </div>
-      )}
+      </div>
     </section>
   );
 }

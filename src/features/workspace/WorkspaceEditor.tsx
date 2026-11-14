@@ -1,4 +1,4 @@
-import { ArrowLeft, Cloud, Download, Eye, Settings as SettingsIcon } from 'lucide-react';
+import { ArrowLeft, Cloud, Download, Eye } from 'lucide-react';
 import { useWorkspace } from '../../hooks/useWorkspace';
 import { usePlayer } from '../../hooks/usePlayer';
 import { useCloudProjects } from '../cloud/useCloudProjects';
@@ -7,14 +7,8 @@ import { RelinkMediaNotice } from './RelinkMediaNotice';
 import { WorkspaceMetadataEditor } from './WorkspaceMetadataEditor';
 
 export function WorkspaceEditor() {
-  const {
-    activeWorkspace,
-    openHome,
-    enterPreview,
-    exportManifest,
-    setIsSettingsOpen,
-    updateMediaDescriptor,
-  } = useWorkspace();
+  const { activeWorkspace, openHome, enterPreview, exportManifest, updateMediaDescriptor } =
+    useWorkspace();
   const { snapshot } = usePlayer();
   const { setIsCloudSaveOpen } = useCloudProjects();
 
@@ -67,16 +61,6 @@ export function WorkspaceEditor() {
           >
             <Download size={15} aria-hidden="true" />
             <span>Export manifest</span>
-          </button>
-
-          <button
-            type="button"
-            className="icon-btn"
-            onClick={() => setIsSettingsOpen(true)}
-            aria-label="Open settings"
-            title="Settings"
-          >
-            <SettingsIcon size={16} aria-hidden="true" />
           </button>
         </div>
       </div>

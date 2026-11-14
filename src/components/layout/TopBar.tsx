@@ -59,7 +59,7 @@ export function TopBar() {
           type="button"
           className="icon-btn topbar-settings-btn"
           onClick={() => setIsSettingsOpen(true)}
-          aria-label="Settings"
+          aria-label="Open settings"
           title="Open settings"
         >
           <SettingsIcon size={16} aria-hidden="true" />
