@@ -13,7 +13,7 @@
     {
       "binding": "DB",
       "database_name": "switchroom-db",
-      "database_id": "local-switchroom-db-id",
+      "database_id": "2df7db06-9cc3-4c21-9229-8bd4a1312b7a",
       "migrations_dir": "worker/migrations",
     },
   ],
