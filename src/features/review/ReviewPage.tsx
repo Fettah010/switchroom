@@ -107,6 +107,7 @@ export function ReviewPage({ token }: { token: string }) {
     edited: null,
   });
   const [snapshot, setSnapshot] = useState(engine.getSnapshot());
+  const [playhead, setPlayhead] = useState(engine.getSnapshot().currentTime);
   const [unavailable, setUnavailable] = useState<{ title: string; message: string } | null>(null);
   const [passwordValue, setPasswordValue] = useState('');
   const [passwordError, setPasswordError] = useState<string | null>(null);
@@ -136,6 +137,8 @@ export function ReviewPage({ token }: { token: string }) {
       }),
     [engine],
   );
+
+  useEffect(() => engine.subscribeToTime(setPlayhead), [engine]);
 
   const readyDecks =
     playback.original !== null &&
@@ -398,7 +401,7 @@ export function ReviewPage({ token }: { token: string }) {
   const audible = snapshot.activeVersion;
   const isPlaying = snapshot.isPlaying;
   const duration = snapshot.duration;
-  const currentTime = snapshot.currentTime;
+  const currentTime = playhead;
   const timelineMax = duration && Number.isFinite(duration) ? duration : 0;
   const timelinePct = timelineMax > 0 ? Math.min(100, (currentTime / timelineMax) * 100) : 0;
 

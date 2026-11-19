@@ -30,13 +30,30 @@ try {
   const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
   const consoleErrors = [];
   const pageErrors = [];
+  const httpErrors = [];
 
   page.on('console', (message) => {
     if (message.type() === 'error') {
-      consoleErrors.push(message.text());
+      const location = message.location();
+      const expectedMissingReview =
+        message.text().includes('status of 404') &&
+        location.url === `${baseURL}/api/share/not-a-real-token/access`;
+      if (!expectedMissingReview) {
+        consoleErrors.push(message.text());
+      }
     }
   });
   page.on('pageerror', (error) => pageErrors.push(error.message));
+  page.on('response', (response) => {
+    if (response.status() >= 400) {
+      const url = new URL(response.url());
+      const expectedMissingReview =
+        response.status() === 404 && url.pathname === '/api/share/not-a-real-token/access';
+      if (!expectedMissingReview) {
+        httpErrors.push(`${response.status()} ${response.url()}`);
+      }
+    }
+  });
 
   const reviewResponse = await page.goto(`${baseURL}/review/not-a-real-token`, {
     waitUntil: 'domcontentloaded',
@@ -157,6 +174,7 @@ try {
 
   assert.deepEqual(consoleErrors, []);
   assert.deepEqual(pageErrors, []);
+  assert.deepEqual(httpErrors, []);
 
   await mkdir(dirname(screenshotPath), { recursive: true });
   await page.evaluate(() => window.scrollTo(0, 0));

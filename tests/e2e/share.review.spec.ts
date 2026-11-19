@@ -128,6 +128,7 @@ test.describe('Switchroom v0.6.0 Client Sharing and Guest Review', () => {
     // 6. Play, seek and switch versions.
     await play.click();
     await expect(page.getByRole('button', { name: 'Pause', exact: true })).toBeVisible();
+    await expect(page.locator('.timeline__times .time').first()).not.toHaveText('0:00');
 
     await setSliderValue(page, 'Timeline', 1);
     await expect(page.locator('.timeline__times .time').first()).not.toHaveText('0:00');

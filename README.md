@@ -2,8 +2,8 @@
 
 **Hear the difference.** Switchroom is a local-first A/B audio player for comparing two versions of the same recording on one synchronized timeline. Load an Original and an Edited file, press Play, and switch between them mid-play through a real Web Audio crossfade, adjustable from 80 to 600 ms (180 ms by default).
 
-**Live:** <https://switchroom.ftallfettah.workers.dev> (v0.5.1)<br>
-**Release candidate:** v0.6.0 adds client sharing and guest review pages. Production release is waiting on R2 signing credentials and bucket CORS setup.
+**Live:** <https://switchroom.ftallfettah.workers.dev> (v0.6.0, deployed November 19, 2026)<br>
+**v0.6.0:** Client sharing and guest review pages are live. Password-protected links remain disabled.
 
 <div align="left">
   <img src="docs/screenshots/desktop-light.png" alt="Switchroom in the Light theme" width="46%" />
@@ -26,7 +26,7 @@
 
 **Client sharing and guest review pages.** A creator with an eligible cloud project (one ready Original and one ready Edited asset) can now share it:
 
-- **Share dialog** (creator dashboard): choose visibility (Public / Unlisted / Private), optional link expiry capped by the project's retention, optional password protection, and create, copy, rotate or revoke links.
+- **Share dialog** (creator dashboard): choose visibility (Public / Unlisted / Private), optional link expiry capped by the project's retention, and create, copy, rotate or revoke links. Password protection is disabled in v0.6.
 - **Public links** — anyone with the link can listen. Not indexed by default; indexing is an explicit opt-in per public project.
 - **Unlisted links** — anyone with the high-entropy link can listen; never listed or indexed.
 - **Private projects** — no primary link at all; clients join through invite links with independent expiry and revocation.
@@ -205,6 +205,7 @@ docs/             Engine, workspaces, manifest, decisions, deployment and suppor
 - **v0.5.1:** waveform color fix, lime button contrast, unified button sizing, RFC 7233 streaming headers, Web Audio CORS fix.
 - **v0.5.0:** private cloud projects, direct R2 uploads, guest creator capabilities, Better Auth accounts.
 
+[0.6.0]: https://github.com/Fettah010/switchroom/releases/tag/v0.6.0
 [0.5.1]: https://github.com/Fettah010/switchroom/releases/tag/v0.5.1
 [0.5.0]: https://github.com/Fettah010/switchroom/releases/tag/v0.5.0
 [0.4.0]: https://github.com/Fettah010/switchroom/releases/tag/v0.4.0

@@ -4,7 +4,7 @@ Switchroom deploys as a React single-page app and Hono API on Cloudflare Workers
 
 ## Current deployment
 
-The production Worker is `switchroom` at <https://switchroom.ftallfettah.workers.dev>. v0.5.1 is live there. v0.6.0 requires D1 migration `0002_v0.6.0_sharing.sql`, R2 signing secrets, and the exact-origin CORS policy before deployment. Record the deployed version ID and smoke-test date after release.
+The production Worker is `switchroom` at <https://switchroom.ftallfettah.workers.dev>. v0.6.0 is live as Worker version `17f1fad7-003b-4f29-b356-f82fcc014bdc` (deployed November 19, 2026). D1 migration `0002_v0.6.0_sharing.sql`, R2 signing secrets and the exact-origin CORS policy are applied. Production smoke, guest browser playback, R2 upload and revocation checks passed November 19, 2026.
 
 ## Prerequisites
 
@@ -94,8 +94,9 @@ $env:SMOKE_URL = 'https://switchroom.<subdomain>.workers.dev'; npm run smoke
 The smoke script drives Chromium against the deployed build. It verifies:
 
 - the production page title and visible privacy statement;
+- that `/api/health` reports the package version and configured bindings;
 - that the development engine hook is absent;
-- that the footer reports the expected version (`v0.3.0`);
+- that the footer reports the expected package version;
 - that Play is disabled with no files;
 - that two local WAV files reach ready, with the correct duration;
 - that both waveform lanes reach `data-ready` and paint real ink (more than a
@@ -105,9 +106,9 @@ The smoke script drives Chromium against the deployed build. It verifies:
 
 Then complete a real browser pass: load two files, listen through the transition, test pause/resume during playback, replace and remove files, change themes, and check a 360 px viewport. For v0.6, also create an eligible cloud project, create an unlisted link, open it in a signed-out browser, listen to both assets, then revoke it and confirm the review is unavailable. The automated smoke check cannot prove audible quality or validate production R2 CORS configuration.
 
-R2 presigned upload and playback require the exact-origin policy in [`worker/config/r2-cors.json`](../worker/config/r2-cors.json). Apply it with `npx wrangler r2 bucket cors set switchroom-audio --file worker/config/r2-cors.json`. The policy allows only the production app origin and the methods and headers used by this app; do not replace it with a wildcard.
+R2 presigned upload and playback require the exact-origin policy in [`worker/config/r2-cors.json`](../worker/config/r2-cors.json). It is installed on `switchroom-audio`. To reapply it, run `npx wrangler r2 bucket cors set switchroom-audio --file worker/config/r2-cors.json`. The policy allows only the production app origin and the methods and headers used by this app; do not replace it with a wildcard.
 
-Set `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, and `R2_SECRET_ACCESS_KEY` as Worker secrets before deploying. The release must remain blocked until `npx wrangler secret list` shows those names and `npx wrangler r2 bucket cors list switchroom-audio` confirms the policy is installed. The local R2 mock fails closed for non-loopback hosts.
+Set `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, and `R2_SECRET_ACCESS_KEY` as Worker secrets before deploying. All three production secrets are configured and verified with `npx wrangler secret list`. The local R2 mock fails closed for non-loopback hosts.
 
 ## CI
 

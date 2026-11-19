@@ -2,12 +2,12 @@
 
 All notable changes to Switchroom are recorded here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses [Semantic Versioning](https://semver.org/).
 
-## [Unreleased] — v0.6.0 release candidate
+## [0.6.0] — 2026-11-19
 
 ### Added
 
 - **Client sharing and guest review pages:** creators can share eligible cloud projects (one ready Original and one ready Edited asset) through public, unlisted or private invite links. Clients open a review link and listen without an account.
-- **Share dialog:** visibility (Public / Unlisted / Private), public indexing opt-in, optional link expiry capped by project retention, and create/copy/rotate/revoke controls for primary and invite links.
+- **Share dialog:** visibility (Public / Unlisted / Private), public indexing opt-in, optional link expiry capped by project retention, and create/copy/rotate/revoke controls for primary and invite links. Password protection is deferred and disabled.
 - **Guest review page (`/review/<token>`):** focused listening room with project title and description, Original/Edited labels and the synchronized A/B player — no dashboard clutter, no account required.
 - **Short-lived playback URLs:** every play request re-runs server-side authorization and issues a temporary R2 presigned GET URL (five-minute target). The bucket and object keys stay private.
 - **Revocation and expiry:** revoked, expired, invalid and expired-project links show clear, privacy-safe unavailable screens. Revocation blocks new access immediately after the server-side state change.
@@ -26,7 +26,8 @@ All notable changes to Switchroom are recorded here. The format follows [Keep a 
 - 255 Vitest tests passing across 28 files (including v0.6 sharing-service unit tests and review-page component tests).
 - 48 Chromium E2E tests pass when run serially; review link playback, revocation, copy, and public-indexing preference flows are included.
 - Prettier, ESLint and strict TypeScript type-check pass.
-- Production build and preview smoke check pass. Production deployment remains blocked on R2 signing secrets and bucket CORS configuration.
+- Production build and deployed smoke check pass. Production R2 CORS, signed uploads, guest sharing, playback and revocation pass against the live Worker; the temporary smoke project and objects were removed.
+- Deployed at <https://switchroom.ftallfettah.workers.dev>, Worker version `17f1fad7-003b-4f29-b356-f82fcc014bdc`.
 
 ## [0.5.1] — 2026-11-14
 
@@ -230,6 +231,8 @@ All notable changes to Switchroom are recorded here. The format follows [Keep a 
 - Playwright WebKit on Windows cannot decode local audio in the test environment, so its audio flows are skipped.
 - No waveforms, persistent library, sharing, accounts or server processing; these are deliberate v0.1 exclusions.
 
+[0.6.0]: https://github.com/Fettah010/switchroom/releases/tag/v0.6.0
+[0.5.1]: https://github.com/Fettah010/switchroom/releases/tag/v0.5.1
 [0.3.0]: https://github.com/Fettah010/switchroom/releases/tag/v0.3.0
 [0.2.0]: https://github.com/Fettah010/switchroom/releases/tag/v0.2.0
 [0.1.0]: https://github.com/Fettah010/switchroom/releases/tag/v0.1.0
