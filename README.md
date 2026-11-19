@@ -18,7 +18,7 @@
 
 ## Preview
 
-<table width="100%">
+<table align="center" width="100%">
   <tr>
     <td width="50%"><img src="docs/screenshots/desktop-light.png" alt="Switchroom desktop comparison in the Light theme" width="100%"></td>
     <td width="50%"><img src="docs/screenshots/desktop-dark.png" alt="Switchroom desktop comparison in the Dark theme" width="100%"></td>
@@ -43,7 +43,7 @@
 
 ## At a glance
 
-<table width="100%">
+<table align="center" width="100%">
   <tr>
     <th align="center" width="25%">🎚️ Local compare</th>
     <th align="center" width="25%">☁️ Cloud save</th>
