@@ -18,7 +18,7 @@
 
 ## Preview
 
-<table>
+<table width="100%">
   <tr>
     <td width="50%"><img src="docs/screenshots/desktop-light.png" alt="Switchroom desktop comparison in the Light theme" width="100%"></td>
     <td width="50%"><img src="docs/screenshots/desktop-dark.png" alt="Switchroom desktop comparison in the Dark theme" width="100%"></td>
@@ -31,30 +31,36 @@
 
 <p align="center"><strong>Phone · 360 px</strong></p>
 
-<table>
+<table align="center" width="100%">
   <tr>
-    <td align="center"><img src="docs/screenshots/mobile-workspace.png" alt="Phone view: workspace" width="150"><br><sub>Workspace</sub></td>
-    <td align="center"><img src="docs/screenshots/mobile-files.png" alt="Phone view: Original and Edited files" width="150"><br><sub>Files</sub></td>
-    <td align="center"><img src="docs/screenshots/mobile-player.png" alt="Phone view: synchronized audio player" width="150"><br><sub>Player</sub></td>
+    <td align="center" width="33.3%"><img src="docs/screenshots/mobile-workspace.png" alt="Phone view: workspace" width="150"><br><sub>01 · Workspace</sub></td>
+    <td align="center" width="33.3%"><img src="docs/screenshots/mobile-files.png" alt="Phone view: Original and Edited files" width="150"><br><sub>02 · Files</sub></td>
+    <td align="center" width="33.3%"><img src="docs/screenshots/mobile-player.png" alt="Phone view: synchronized audio player" width="150"><br><sub>03 · Player</sub></td>
   </tr>
 </table>
 
-<p align="center"><sub><a href="docs/screenshots/mobile-360.png">Open the full-size phone capture</a></sub></p>
+<p align="center"><sub><a href="docs/screenshots/mobile-360.png">View the full-size phone capture</a></sub></p>
 
 ## At a glance
 
-| Local compare | Cloud save | Guest review |  Password links  |
-| :-----------: | :--------: | :----------: | :--------------: |
-|     Ready     |   Ready    |    Ready     | Disabled in v0.6 |
+<table width="100%">
+  <tr>
+    <th align="center" width="25%">🎚️ Local compare</th>
+    <th align="center" width="25%">☁️ Cloud save</th>
+    <th align="center" width="25%">🔗 Guest review</th>
+    <th align="center" width="25%">🔒 Password links</th>
+  </tr>
+  <tr>
+    <td align="center">✅ Ready</td>
+    <td align="center">✅ Ready</td>
+    <td align="center">✅ Ready</td>
+    <td align="center">⏸️ Off in v0.6</td>
+  </tr>
+</table>
 
-```mermaid
-flowchart LR
-    A[Original + Edited] --> B[Compare in browser]
-    B -->|Keep local| C[Audio stays on device]
-    B -->|Explicit save| D[Private cloud project]
-    D --> E[Share review link]
-    E --> F[Client listens without an account]
-```
+<p align="center"><strong>From local comparison to client review</strong></p>
+
+<p align="center"><img src="docs/screenshots/workflow.svg" alt="Four-step Switchroom flow: prepare tracks, compare locally, optionally save to a private cloud project, then share an account-free review link" width="100%"></p>
 
 ## What it does
 

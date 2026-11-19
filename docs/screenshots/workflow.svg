@@ -1,0 +1,88 @@
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  width="1120"
+  height="200"
+  viewBox="0 0 1120 200"
+  role="img"
+  aria-labelledby="title description"
+>
+  <title id="title">Switchroom workflow</title>
+  <desc id="description">
+    Choose Original and Edited tracks, compare them locally, optionally save a private cloud
+    project, then share a review link for account-free listening.
+  </desc>
+  <defs>
+    <marker id="arrow" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto">
+      <path
+        d="M1 1 6 4 1 7"
+        fill="none"
+        stroke="#70745f"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        stroke-width="1.5"
+      />
+    </marker>
+  </defs>
+  <rect width="1120" height="200" rx="22" fill="#f5f2e8" />
+  <g fill="none" stroke="#70745f" stroke-width="2" marker-end="url(#arrow)">
+    <path d="M266 100h27" />
+    <path d="M544 100h27" />
+    <path d="M822 100h27" />
+  </g>
+  <g font-family="Inter,Segoe UI,Arial,sans-serif">
+    <g>
+      <rect x="20" y="32" width="246" height="136" rx="16" fill="#fffdf7" stroke="#dcd6c5" />
+      <rect x="20" y="32" width="5" height="136" rx="2.5" fill="#526313" />
+      <circle cx="54" cy="72" r="17" fill="#526313" />
+      <text x="54" y="77" fill="#fff" font-size="12" font-weight="700" text-anchor="middle">
+        01
+      </text>
+      <text x="80" y="68" fill="#777967" font-size="10" font-weight="700" letter-spacing="1.2">
+        PREPARE
+      </text>
+      <text x="42" y="116" fill="#20231b" font-size="17" font-weight="700">Original + Edited</text>
+      <text x="42" y="140" fill="#656858" font-size="12">Choose two versions</text>
+    </g>
+    <g>
+      <rect x="298" y="32" width="246" height="136" rx="16" fill="#fffdf7" stroke="#dcd6c5" />
+      <rect x="298" y="32" width="5" height="136" rx="2.5" fill="#526313" />
+      <circle cx="332" cy="72" r="17" fill="#526313" />
+      <text x="332" y="77" fill="#fff" font-size="12" font-weight="700" text-anchor="middle">
+        02
+      </text>
+      <text x="358" y="68" fill="#777967" font-size="10" font-weight="700" letter-spacing="1.2">
+        COMPARE
+      </text>
+      <text x="320" y="116" fill="#20231b" font-size="17" font-weight="700">
+        One shared timeline
+      </text>
+      <text x="320" y="140" fill="#656858" font-size="12">Switch without stopping</text>
+    </g>
+    <g>
+      <rect x="576" y="32" width="246" height="136" rx="16" fill="#fffdf7" stroke="#dcd6c5" />
+      <rect x="576" y="32" width="5" height="136" rx="2.5" fill="#b8d83b" />
+      <circle cx="610" cy="72" r="17" fill="#d9ef86" />
+      <text x="610" y="77" fill="#364414" font-size="12" font-weight="700" text-anchor="middle">
+        03
+      </text>
+      <text x="636" y="68" fill="#777967" font-size="10" font-weight="700" letter-spacing="1.2">
+        OPTIONAL CLOUD SAVE
+      </text>
+      <text x="598" y="116" fill="#20231b" font-size="17" font-weight="700">Private project</text>
+      <text x="598" y="140" fill="#656858" font-size="12">Only when you choose</text>
+    </g>
+    <g>
+      <rect x="854" y="32" width="246" height="136" rx="16" fill="#fffdf7" stroke="#dcd6c5" />
+      <rect x="854" y="32" width="5" height="136" rx="2.5" fill="#b8d83b" />
+      <circle cx="888" cy="72" r="17" fill="#d9ef86" />
+      <text x="888" y="77" fill="#364414" font-size="12" font-weight="700" text-anchor="middle">
+        04
+      </text>
+      <text x="914" y="68" fill="#777967" font-size="10" font-weight="700" letter-spacing="1.2">
+        REVIEW
+      </text>
+      <text x="876" y="116" fill="#20231b" font-size="17" font-weight="700">Share a review</text>
+      <text x="876" y="140" fill="#656858" font-size="12">Listen without sign-in</text>
+    </g>
+  </g>
+</svg>
