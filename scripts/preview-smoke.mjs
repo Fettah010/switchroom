@@ -47,6 +47,10 @@ try {
     'Review pages must be noindex by default.',
   );
 
+  const healthResponse = await page.request.get(`${baseURL}/api/health`);
+  assert.equal(healthResponse.ok(), true, 'The Worker health endpoint must be available.');
+  assert.equal((await healthResponse.json()).version, pkg.version);
+
   await page.goto(baseURL, { waitUntil: 'networkidle' });
 
   assert.match(await page.title(), /Switchroom/);
