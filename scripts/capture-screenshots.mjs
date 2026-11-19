@@ -56,6 +56,27 @@ try {
     await page.waitForTimeout(400);
     await page.screenshot({ path: resolve(outputDir, shot.name), fullPage: true });
 
+    if (shot.name === 'mobile-360.png') {
+      const originalTop = await page
+        .locator('.slot--original')
+        .evaluate((element) => element.getBoundingClientRect().top + window.scrollY);
+      const playerTop = await page
+        .locator('.player')
+        .evaluate((element) => element.getBoundingClientRect().top + window.scrollY);
+      const mobileViews = [
+        { name: 'mobile-workspace.png', scrollY: 0 },
+        { name: 'mobile-files.png', scrollY: Math.max(0, originalTop - 60) },
+        { name: 'mobile-player.png', scrollY: Math.max(0, playerTop - 40) },
+      ];
+
+      for (const view of mobileViews) {
+        await page.evaluate((scrollY) => window.scrollTo(0, scrollY), view.scrollY);
+        await page.waitForTimeout(150);
+        await page.screenshot({ path: resolve(outputDir, view.name) });
+        console.log(`Captured ${view.name} at 360x800`);
+      }
+    }
+
     console.log(`Captured ${shot.name} at ${shot.width}x${shot.height}`);
     await context.close();
   }
