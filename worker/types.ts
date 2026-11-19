@@ -15,14 +15,17 @@ export interface Env {
   GOOGLE_CLIENT_SECRET?: string;
   ASSETS?: Fetcher;
   APP_ENV?: string;
+  SHARING_PASSWORD_PROTECTION_ENABLED?: string;
 }
 
 export type ProjectStatus = 'draft' | 'uploading' | 'ready' | 'expired' | 'deleting';
-export type ProjectVisibility = 'private';
+export type ProjectVisibility = 'public' | 'unlisted' | 'private';
 export type RetentionDays = 1 | 7 | 14 | 30 | 60 | 90;
 export type AssetRole = 'original' | 'edited';
 export type AssetStatus = 'pending' | 'uploading' | 'ready' | 'failed';
 export type UploadSessionStatus = 'created' | 'completed' | 'cancelled' | 'expired' | 'failed';
+export type ShareLinkKind = 'primary' | 'invite';
+export type ShareScope = 'listen';
 
 export interface ProjectRow {
   id: string;
@@ -31,7 +34,10 @@ export interface ProjectRow {
   title: string;
   description: string;
   status: ProjectStatus;
-  visibility: ProjectVisibility;
+  /** Legacy v0.5 column; remains private due to its original CHECK constraint. */
+  visibility: 'private';
+  /** Authoritative v0.6 visibility setting. */
+  sharing_visibility: ProjectVisibility;
   retention_days: RetentionDays;
   crossfade_ms: number;
   presentation_layout: string;
@@ -39,6 +45,40 @@ export interface ProjectRow {
   updated_at: number;
   expires_at: number;
   deleted_at: number | null;
+  public_indexing_enabled: number;
+  password_hash: string | null;
+}
+
+export interface ShareLinkRow {
+  id: string;
+  project_id: string;
+  token_hash: string;
+  kind: ShareLinkKind;
+  scope: ShareScope;
+  label: string | null;
+  expires_at: number | null;
+  revoked_at: number | null;
+  created_at: number;
+  last_used_at: number | null;
+}
+
+export interface ShareAccessResult {
+  project: ProjectRow;
+  link: ShareLinkRow;
+  capabilities: {
+    listen: boolean;
+    feedback: boolean;
+    downloads: boolean;
+  };
+  passwordRequired: boolean;
+  linkExpiresAt: number | null;
+}
+
+export interface PlaybackUrlResult {
+  url: string;
+  expiresAt: number;
+  mimeType: string;
+  sizeBytes: number;
 }
 
 export interface AudioAssetRow {
@@ -83,7 +123,13 @@ export type ErrorCode =
   | 'UPLOAD_VERIFICATION_FAILED'
   | 'STORAGE_UNAVAILABLE'
   | 'CONFLICT'
-  | 'INTERNAL_ERROR';
+  | 'INTERNAL_ERROR'
+  | 'LINK_UNAVAILABLE'
+  | 'PASSWORD_REQUIRED'
+  | 'PASSWORD_INVALID'
+  | 'TOO_MANY_ATTEMPTS'
+  | 'SHARING_DISABLED'
+  | 'INVALID_ROLE';
 
 export interface ApiErrorResponse {
   error: {
@@ -95,3 +141,11 @@ export interface ApiErrorResponse {
 
 export type OwnerContext =
   { mode: 'user'; userId: string } | { mode: 'guest'; projectId: string; capabilityHash: string };
+
+export interface SharingSettings {
+  visibility: ProjectVisibility;
+  public_indexing_enabled: boolean;
+  passwordAvailable: boolean;
+  feedback_enabled: boolean;
+  downloads_enabled: boolean;
+}

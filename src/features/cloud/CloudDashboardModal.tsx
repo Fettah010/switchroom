@@ -9,6 +9,7 @@ import {
   LoaderCircle,
   Lock,
   RefreshCw,
+  Share2,
   Trash2,
   User,
   X,
@@ -16,6 +17,7 @@ import {
 import type { CloudProject } from './cloudTypes';
 import { useCloudProjects } from './useCloudProjects';
 import { formatFileSize } from '../../audio/fileValidation';
+import { ShareDialog } from '../../components/share/ShareDialog';
 
 function formatExpiryTime(expiresAt: number, currentTime: number): string {
   const remainingMs = expiresAt - currentTime;
@@ -44,6 +46,7 @@ export function CloudDashboardModal({ isOpen, onClose }: { isOpen: boolean; onCl
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [openingId, setOpeningId] = useState<string | null>(null);
   const [claimingId, setClaimingId] = useState<string | null>(null);
+  const [sharingProjectId, setSharingProjectId] = useState<string | null>(null);
   const [dashboardError, setDashboardError] = useState<string | null>(null);
   const [renderedAt] = useState(() => Date.now());
 
@@ -166,6 +169,8 @@ export function CloudDashboardModal({ isOpen, onClose }: { isOpen: boolean; onCl
                 comparison in private cloud storage.
               </p>
             </div>
+          ) : sharingProjectId ? (
+            <ShareDialog projectId={sharingProjectId} onClose={() => setSharingProjectId(null)} />
           ) : (
             <div className="cloud-projects-list">
               {projects.map((project) => {
@@ -241,6 +246,22 @@ export function CloudDashboardModal({ isOpen, onClose }: { isOpen: boolean; onCl
                         )}
                         <span>Open</span>
                       </button>
+
+                      {isReady && !isExpired && (
+                        <button
+                          type="button"
+                          className="secondary-btn secondary-btn--sm"
+                          onClick={() => {
+                            setSharingProjectId(project.id);
+                          }}
+                          disabled={sharingProjectId !== null}
+                          aria-label="Share project"
+                          title="Share review link"
+                        >
+                          <Share2 size={14} aria-hidden="true" />
+                          <span>Share</span>
+                        </button>
+                      )}
 
                       <button
                         type="button"

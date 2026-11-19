@@ -17,6 +17,7 @@ import { HomePage } from '../features/home/HomePage';
 import { WorkspaceEditor } from '../features/workspace/WorkspaceEditor';
 import { ClientPreview } from '../features/presentation/ClientPreview';
 import { SettingsPanel } from '../features/settings/SettingsPanel';
+import { ReviewPage } from '../features/review/ReviewPage';
 
 import type { LocalWorkspaceRepository } from '../workspaces/workspaceRepository';
 import type { WorkspaceRecord } from '../workspaces/workspaceTypes';
@@ -56,6 +57,16 @@ function AppContent() {
       window.removeEventListener('hashchange', checkHash);
     };
   }, [reopenFromCapability, setIsDashboardOpen]);
+
+  // Client review route: /review/:token — no account, no dashboard chrome.
+  const reviewToken =
+    typeof window !== 'undefined'
+      ? (window.location.pathname.match(/^\/review\/([^/?#]+)$/) as RegExpMatchArray | null)?.[1]
+      : null;
+
+  if (reviewToken) {
+    return <ReviewPage token={reviewToken} />;
+  }
 
   return (
     <div className="page">

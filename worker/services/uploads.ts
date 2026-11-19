@@ -92,13 +92,18 @@ export async function createUploadSession(
   const expiresAt = now + QUOTA_POLICY.uploadUrlTtlSeconds * 1000;
 
   // 6. Generate presigned PUT URL
-  const uploadUrl = await createPresignedPutUrl(
-    env,
-    origin,
-    objectKey,
-    cleanMime,
-    QUOTA_POLICY.uploadUrlTtlSeconds,
-  );
+  let uploadUrl: string;
+  try {
+    uploadUrl = await createPresignedPutUrl(
+      env,
+      origin,
+      objectKey,
+      cleanMime,
+      QUOTA_POLICY.uploadUrlTtlSeconds,
+    );
+  } catch {
+    throw new UploadError('STORAGE_UNAVAILABLE', 'Private audio storage is not configured');
+  }
 
   // 7. Insert upload session record
   await env.DB.prepare(

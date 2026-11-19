@@ -5,6 +5,15 @@ import type { Env, AssetRole } from '../types';
 import { generateOpaqueId } from './crypto';
 import { QUOTA_POLICY } from '../config/quotas';
 
+export function isLocalDevelopmentOrigin(origin: string): boolean {
+  try {
+    const hostname = new URL(origin).hostname;
+    return hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '[::1]';
+  } catch {
+    return false;
+  }
+}
+
 /** Generates a safe, opaque object key. Never contains user-controlled filenames. */
 export function generateObjectKey(projectId: string, role: AssetRole): string {
   const nonce = generateOpaqueId('asset');
@@ -49,8 +58,10 @@ export async function createPresignedPutUrl(
     return signed.url;
   }
 
-  // Local development / test fallback: route directly through dev mock endpoint
-  return `${origin}/api/dev-r2-mock/${encodeURIComponent(objectKey)}?type=${encodeURIComponent(mimeType)}`;
+  if (isLocalDevelopmentOrigin(origin)) {
+    return `${origin}/api/dev-r2-mock/${encodeURIComponent(objectKey)}?type=${encodeURIComponent(mimeType)}`;
+  }
+  throw new Error('Private R2 upload signing is not configured');
 }
 
 /**
@@ -85,8 +96,10 @@ export async function createPresignedGetUrl(
     return signed.url;
   }
 
-  // Local development / test fallback
-  return `${origin}/api/dev-r2-mock/${encodeURIComponent(objectKey)}`;
+  if (isLocalDevelopmentOrigin(origin)) {
+    return `${origin}/api/dev-r2-mock/${encodeURIComponent(objectKey)}`;
+  }
+  throw new Error('Private R2 playback signing is not configured');
 }
 
 export interface VerifiedHeadResult {

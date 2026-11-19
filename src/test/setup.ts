@@ -58,6 +58,15 @@ Object.defineProperty(HTMLCanvasElement.prototype, 'getContext', {
   value: () => null,
 });
 
+// jsdom does not implement native media loading or playback. Keep UI tests
+// deterministic and avoid its repeated "Not implemented" diagnostics; audio
+// engine behaviour is covered with the explicit fake media host.
+Object.defineProperties(HTMLMediaElement.prototype, {
+  load: { configurable: true, value: () => undefined },
+  pause: { configurable: true, value: () => undefined },
+  play: { configurable: true, value: () => Promise.resolve() },
+});
+
 beforeEach(() => {
   vi.stubGlobal('ResizeObserver', ResizeObserverStub);
   installMatchMedia(false);

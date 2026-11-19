@@ -3,11 +3,17 @@ import type { Env } from '../types';
 
 export const devMockRoute = new Hono<{ Bindings: Env }>();
 
+function isLocalRequest(url: string): boolean {
+  const hostname = new URL(url).hostname;
+  return hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '[::1]';
+}
+
 /**
  * Local development and testing mock endpoint for R2 direct upload (PUT).
  * Accepts raw audio stream from browser and stores it in the Worker's AUDIO_BUCKET binding.
  */
 devMockRoute.put('/dev-r2-mock/:key', async (c) => {
+  if (!isLocalRequest(c.req.url)) return c.text('Not found', 404);
   const key = decodeURIComponent(c.req.param('key'));
   const contentType =
     c.req.header('content-type') || c.req.query('type') || 'application/octet-stream';
@@ -32,6 +38,7 @@ devMockRoute.put('/dev-r2-mock/:key', async (c) => {
  * Supports HTTP Range requests for seamless Web Audio / HTML5 audio playback.
  */
 devMockRoute.get('/dev-r2-mock/:key', async (c) => {
+  if (!isLocalRequest(c.req.url)) return c.text('Not found', 404);
   const key = decodeURIComponent(c.req.param('key'));
 
   if (!c.env.AUDIO_BUCKET) {
@@ -39,16 +46,16 @@ devMockRoute.get('/dev-r2-mock/:key', async (c) => {
   }
 
   const rangeHeader = c.req.header('range');
-  let range: { offset?: number; length?: number } | undefined;
+  let range: R2Range | undefined;
 
   if (rangeHeader) {
     const match = rangeHeader.match(/bytes=(\d+)-(\d*)/);
-    if (match) {
+    if (match && match[1]) {
       const start = parseInt(match[1], 10);
       const end = match[2] ? parseInt(match[2], 10) : undefined;
       range = {
         offset: start,
-        length: end !== undefined ? end - start + 1 : undefined,
+        ...(end !== undefined ? { length: end - start + 1 } : {}),
       };
     }
   }
@@ -63,7 +70,7 @@ devMockRoute.get('/dev-r2-mock/:key', async (c) => {
   headers.set('Accept-Ranges', 'bytes');
   headers.set('ETag', obj.httpEtag || 'mock-etag');
 
-  if (range && obj.range) {
+  if (range && obj.range && 'offset' in obj.range) {
     const start = obj.range.offset ?? 0;
     const length =
       'length' in obj.range && typeof obj.range.length === 'number'

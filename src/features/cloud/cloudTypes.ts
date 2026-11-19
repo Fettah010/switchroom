@@ -6,6 +6,7 @@ export type RetentionDays = 1 | 7 | 14 | 30 | 60 | 90;
 export type AssetRole = 'original' | 'edited';
 export type AssetStatus = 'pending' | 'uploading' | 'ready' | 'failed';
 export type CloudProjectStatus = 'draft' | 'uploading' | 'ready' | 'expired' | 'deleting';
+export type ProjectVisibility = 'public' | 'unlisted' | 'private';
 
 export interface CloudAsset {
   id?: string;
@@ -22,7 +23,7 @@ export interface CloudProject {
   title: string;
   description: string;
   status: CloudProjectStatus;
-  visibility: 'private';
+  visibility: ProjectVisibility;
   retention_days: RetentionDays;
   crossfade_ms: number;
   presentation_layout: PresentationLayout;

@@ -15,8 +15,10 @@ export interface QuotaPolicy {
   guestMaxStorageBytes: number;
   /** Upload presigned URL lifetime in seconds (30 minutes). */
   uploadUrlTtlSeconds: number;
-  /** Playback presigned URL lifetime in seconds (1 hour). */
+  /** Playback presigned URL lifetime in seconds (1 hour, owner preview). */
   playbackUrlTtlSeconds: number;
+  /** Share playback presigned URL lifetime in seconds (5 minutes target). */
+  sharePlaybackUrlTtlSeconds: number;
 }
 
 export const QUOTA_POLICY: QuotaPolicy = {
@@ -27,6 +29,7 @@ export const QUOTA_POLICY: QuotaPolicy = {
   guestMaxStorageBytes: 300 * 1024 * 1024, // 300 MB
   uploadUrlTtlSeconds: 1800, // 30 minutes
   playbackUrlTtlSeconds: 3600, // 1 hour
+  sharePlaybackUrlTtlSeconds: 300, // 5 minutes
 };
 
 export const ALLOWED_RETENTION_DAYS: readonly RetentionDays[] = [1, 7, 14, 30, 60, 90];

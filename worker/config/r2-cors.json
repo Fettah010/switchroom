@@ -1,0 +1,13 @@
+{
+  "rules": [
+    {
+      "allowed": {
+        "origins": ["https://switchroom.ftallfettah.workers.dev"],
+        "methods": ["GET", "HEAD", "PUT"],
+        "headers": ["Content-Type", "Range"]
+      },
+      "exposeHeaders": ["Accept-Ranges", "Content-Length", "Content-Range", "ETag"],
+      "maxAgeSeconds": 3600
+    }
+  ]
+}

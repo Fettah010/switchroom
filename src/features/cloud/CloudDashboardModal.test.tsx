@@ -9,24 +9,28 @@ import { InMemoryWorkspaceRepository } from '../../workspaces/inMemoryWorkspaceR
 import * as cloudApi from '../../lib/api/cloudApi';
 import type { CloudProject } from './cloudTypes';
 
-vi.mock('../../lib/api/cloudApi', () => ({
-  getAuthProviders: vi
-    .fn()
-    .mockResolvedValue({ guest: true, github: false, google: false, authAvailable: false }),
-  getCurrentUser: vi.fn().mockResolvedValue(null),
-  listUserProjects: vi.fn().mockResolvedValue([]),
-  listBatchProjects: vi.fn().mockResolvedValue([]),
-  deleteCloudProject: vi.fn().mockResolvedValue({ success: true }),
-  claimGuestProject: vi.fn().mockResolvedValue({ success: true }),
-  getPlaybackInfo: vi.fn().mockResolvedValue({
-    playbackUrl: 'https://mock-r2/audio.wav',
-    role: 'original',
-    filename: 'track.wav',
-    mimeType: 'audio/wav',
-    sizeBytes: 1024,
-    expiresAt: Date.now() + 3600000,
-  }),
-}));
+vi.mock('../../lib/api/cloudApi', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../lib/api/cloudApi')>();
+  return {
+    ...actual,
+    getAuthProviders: vi
+      .fn()
+      .mockResolvedValue({ guest: true, github: false, google: false, authAvailable: false }),
+    getCurrentUser: vi.fn().mockResolvedValue(null),
+    listUserProjects: vi.fn().mockResolvedValue([]),
+    listBatchProjects: vi.fn().mockResolvedValue([]),
+    deleteCloudProject: vi.fn().mockResolvedValue({ success: true }),
+    claimGuestProject: vi.fn().mockResolvedValue({ success: true }),
+    getPlaybackInfo: vi.fn().mockResolvedValue({
+      playbackUrl: 'https://mock-r2/audio.wav',
+      role: 'original',
+      filename: 'track.wav',
+      mimeType: 'audio/wav',
+      sizeBytes: 1024,
+      expiresAt: Date.now() + 3600000,
+    }),
+  };
+});
 
 const mockProjects: CloudProject[] = [
   {

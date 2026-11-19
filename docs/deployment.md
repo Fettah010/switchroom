@@ -1,10 +1,10 @@
 # Deployment
 
-Switchroom deploys as a static single-page app on Cloudflare Workers Static Assets. There is no server-side API, database, R2 bucket or Worker entry point.
+Switchroom deploys as a React single-page app and Hono API on Cloudflare Workers Static Assets, backed by D1 metadata and a private R2 bucket.
 
 ## Current deployment
 
-The v0.3.0 release is deployed at <https://switchroom.ftallfettah.workers.dev> (Worker name `switchroom`) and was smoke-tested against that URL on 2026-11-09. The deployed version ID was `e31cbcbf-6c57-4243-bab8-9141548b2b76`. The remaining instructions describe how to reproduce or update that deployment.
+The production Worker is `switchroom` at <https://switchroom.ftallfettah.workers.dev>. v0.5.1 is live there. v0.6.0 requires D1 migration `0002_v0.6.0_sharing.sql`, R2 signing secrets, and the exact-origin CORS policy before deployment. Record the deployed version ID and smoke-test date after release.
 
 ## Prerequisites
 
@@ -103,7 +103,11 @@ The smoke script drives Chromium against the deployed build. It verifies:
 - that playback advances, switches to Edited without resetting, and pauses correctly;
 - that there are no console or page errors.
 
-Then complete a real browser pass: load two files, listen through the transition, test pause/resume during playback, replace and remove files, change themes, and check a 360 px viewport. The automated smoke check cannot prove audible quality.
+Then complete a real browser pass: load two files, listen through the transition, test pause/resume during playback, replace and remove files, change themes, and check a 360 px viewport. For v0.6, also create an eligible cloud project, create an unlisted link, open it in a signed-out browser, listen to both assets, then revoke it and confirm the review is unavailable. The automated smoke check cannot prove audible quality or validate production R2 CORS configuration.
+
+R2 presigned upload and playback require the exact-origin policy in [`worker/config/r2-cors.json`](../worker/config/r2-cors.json). Apply it with `npx wrangler r2 bucket cors set switchroom-audio --file worker/config/r2-cors.json`. The policy allows only the production app origin and the methods and headers used by this app; do not replace it with a wildcard.
+
+Set `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, and `R2_SECRET_ACCESS_KEY` as Worker secrets before deploying. The release must remain blocked until `npx wrangler secret list` shows those names and `npx wrangler r2 bucket cors list switchroom-audio` confirms the policy is installed. The local R2 mock fails closed for non-loopback hosts.
 
 ## CI
 
@@ -145,13 +149,13 @@ Add a custom domain in the Cloudflare dashboard under the Worker's **Settings â†
 
 Perform in order:
 
-1. `npm run format:check`, `npm run lint`, `npm run typecheck`, `npm test`, `npm run test:e2e` all pass.
-2. `npm run build` passes from a clean checkout.
-3. `npm run preview` and `npm run smoke` pass against the Workers runtime.
+1. `npm run format:check`, `npm run lint`, `npm run typecheck`, `npm test`, and `npm run test:e2e` pass.
+2. The v0.6 D1 migration is applied and confirmed before deployment; its additive schema preserves existing projects and assets.
+3. `npm run build`, `npm run preview`, and `npm run smoke` pass against the Workers runtime.
 4. A human listening pass is completed and recorded in [browser-support.md](browser-support.md).
-5. `npm run deploy` succeeds and the public URL is recorded.
-6. `SMOKE_URL=<public URL> npm run smoke` passes.
-7. The public URL is checked in a real desktop browser.
-8. Only then: commit, push, create tag `v0.3.0` and publish GitHub release notes.
+5. `npm run deploy` succeeds and the public URL and Worker version ID are recorded.
+6. `SMOKE_URL=https://switchroom.ftallfettah.workers.dev npm run smoke` passes.
+7. The public URL and the v0.6 guest listening/revocation flow are checked in a real browser.
+8. Only then: commit, push, create tag `v0.6.0`, and publish GitHub release notes.
 
 Never describe the release as deployed before steps 5â€“7 have actually passed.

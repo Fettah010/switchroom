@@ -1,6 +1,13 @@
 // Project management, lifecycle, and storage operations for Switchroom v0.5.0
 
-import type { AudioAssetRow, Env, ProjectRow, ProjectStatus, RetentionDays } from '../types';
+import type {
+  AudioAssetRow,
+  Env,
+  ProjectRow,
+  ProjectStatus,
+  ProjectVisibility,
+  RetentionDays,
+} from '../types';
 import {
   computeExpiryTimestamp,
   DEFAULT_RETENTION_DAYS,
@@ -120,9 +127,9 @@ export async function createProject(
     .prepare(
       `INSERT INTO projects (
         id, owner_user_id, owner_capability_hash, title, description,
-        status, visibility, retention_days, crossfade_ms, presentation_layout,
+        status, visibility, sharing_visibility, retention_days, crossfade_ms, presentation_layout,
         created_at, updated_at, expires_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
     .bind(
       projectId,
@@ -131,6 +138,7 @@ export async function createProject(
       title,
       (params.description || '').slice(0, 2000),
       'draft',
+      'private',
       'private',
       retention,
       crossfadeMs,
@@ -149,6 +157,7 @@ export async function createProject(
     description: (params.description || '').slice(0, 2000),
     status: 'draft',
     visibility: 'private',
+    sharing_visibility: 'private',
     retention_days: retention,
     crossfade_ms: crossfadeMs,
     presentation_layout: layout,
@@ -156,6 +165,8 @@ export async function createProject(
     updated_at: now,
     expires_at: expiresAt,
     deleted_at: null,
+    public_indexing_enabled: 0,
+    password_hash: null,
   };
 
   return {
@@ -175,6 +186,9 @@ export async function updateProject(
     retentionDays?: RetentionDays;
     crossfadeMs?: number;
     presentationLayout?: string;
+    visibility?: ProjectVisibility;
+    publicIndexingEnabled?: boolean;
+    passwordHash?: string | null;
   },
 ): Promise<ProjectRow> {
   const project = await getProjectById(db, id);
@@ -189,6 +203,9 @@ export async function updateProject(
   let expiresAt = project.expires_at;
   let crossfadeMs = project.crossfade_ms;
   let layout = project.presentation_layout;
+  let sharingVisibility = project.sharing_visibility;
+  let publicIndexingEnabled = project.public_indexing_enabled === 1;
+  let passwordHash = project.password_hash;
 
   if (updates.title !== undefined) {
     const clean = updates.title.trim().slice(0, 120);
@@ -213,14 +230,39 @@ export async function updateProject(
     layout = updates.presentationLayout;
   }
 
+  if (updates.visibility !== undefined) {
+    sharingVisibility = updates.visibility;
+  }
+
+  if (updates.publicIndexingEnabled !== undefined) {
+    publicIndexingEnabled = updates.publicIndexingEnabled;
+  }
+
+  if (updates.passwordHash !== undefined) {
+    passwordHash = updates.passwordHash;
+  }
+
   await db
     .prepare(
       `UPDATE projects SET
         title = ?, description = ?, retention_days = ?, expires_at = ?,
-        crossfade_ms = ?, presentation_layout = ?, updated_at = ?
+        crossfade_ms = ?, presentation_layout = ?, updated_at = ?,
+        sharing_visibility = ?, public_indexing_enabled = ?, password_hash = ?
       WHERE id = ?`,
     )
-    .bind(title, description, retention, expiresAt, crossfadeMs, layout, now, id)
+    .bind(
+      title,
+      description,
+      retention,
+      expiresAt,
+      crossfadeMs,
+      layout,
+      now,
+      sharingVisibility,
+      publicIndexingEnabled ? 1 : 0,
+      passwordHash,
+      id,
+    )
     .run();
 
   return {
@@ -231,6 +273,9 @@ export async function updateProject(
     expires_at: expiresAt,
     crossfade_ms: crossfadeMs,
     presentation_layout: layout,
+    sharing_visibility: sharingVisibility,
+    public_indexing_enabled: publicIndexingEnabled ? 1 : 0,
+    password_hash: passwordHash,
     updated_at: now,
   };
 }

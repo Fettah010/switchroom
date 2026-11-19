@@ -38,6 +38,15 @@ try {
   });
   page.on('pageerror', (error) => pageErrors.push(error.message));
 
+  const reviewResponse = await page.goto(`${baseURL}/review/not-a-real-token`, {
+    waitUntil: 'domcontentloaded',
+  });
+  assert.equal(
+    await reviewResponse?.headerValue('x-robots-tag'),
+    'noindex, nofollow, noarchive',
+    'Review pages must be noindex by default.',
+  );
+
   await page.goto(baseURL, { waitUntil: 'networkidle' });
 
   assert.match(await page.title(), /Switchroom/);
