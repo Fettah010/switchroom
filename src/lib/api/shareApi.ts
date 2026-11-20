@@ -47,6 +47,7 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
 
 export interface ShareAccessResponse {
   project: {
+    id?: string;
     title: string;
     description: string;
     original: { label: string; durationMs?: number | null };
@@ -88,6 +89,8 @@ export interface ShareLinksResponse {
     title: string;
     visibility: ProjectVisibility;
     public_indexing_enabled: boolean;
+    feedback_enabled?: boolean;
+    downloads_enabled?: boolean;
     expires_at: number;
   };
   passwordAvailable: boolean;
@@ -109,6 +112,8 @@ export interface UpdateSharingParams {
   visibility?: ProjectVisibility;
   public_indexing_enabled?: boolean;
   password?: string | null;
+  feedback_enabled?: boolean;
+  downloads_enabled?: boolean;
 }
 
 /** Resolves a share token to safe review-page metadata and capabilities. */

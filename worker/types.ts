@@ -1,4 +1,4 @@
-// Worker runtime environment and database types for Switchroom v0.5.0
+// Worker runtime environment and database types for Switchroom v0.7.0
 
 export interface Env {
   DB: D1Database;
@@ -24,6 +24,7 @@ export type RetentionDays = 1 | 7 | 14 | 30 | 60 | 90;
 export type AssetRole = 'original' | 'edited';
 export type AssetStatus = 'pending' | 'uploading' | 'ready' | 'failed';
 export type UploadSessionStatus = 'created' | 'completed' | 'cancelled' | 'expired' | 'failed';
+export type UploadStrategy = 'single_put' | 'multipart';
 export type ShareLinkKind = 'primary' | 'invite';
 export type ShareScope = 'listen';
 
@@ -47,6 +48,8 @@ export interface ProjectRow {
   deleted_at: number | null;
   public_indexing_enabled: number;
   password_hash: string | null;
+  feedback_enabled: number;
+  downloads_enabled: number;
 }
 
 export interface ShareLinkRow {
@@ -103,9 +106,80 @@ export interface UploadSessionRow {
   expected_size: number;
   expected_mime: string;
   status: UploadSessionStatus;
+  strategy: UploadStrategy;
+  multipart_upload_id: string | null;
+  part_size: number | null;
+  total_parts: number | null;
+  reserved_bytes: number;
   expires_at: number;
   created_at: number;
   updated_at: number;
+}
+
+export interface UploadPartRow {
+  id: string;
+  upload_session_id: string;
+  part_number: number;
+  etag: string;
+  size_bytes: number;
+  created_at: number;
+}
+
+export interface ParticipantRow {
+  id: string;
+  project_id: string;
+  user_id: string | null;
+  guest_token_hash: string | null;
+  display_name: string;
+  created_at: number;
+  last_seen_at: number;
+}
+
+export type PreferredVoteChoice = 'original' | 'edited';
+
+export interface PreferredVoteRow {
+  id: string;
+  project_id: string;
+  participant_id: string;
+  choice: PreferredVoteChoice;
+  created_at: number;
+  updated_at: number;
+}
+
+export interface VoteCounts {
+  original: number;
+  edited: number;
+  total: number;
+}
+
+export interface CommentRow {
+  id: string;
+  project_id: string;
+  participant_id: string;
+  parent_comment_id: string | null;
+  timestamp_ms: number | null;
+  body: string;
+  created_at: number;
+  updated_at: number;
+  deleted_at: number | null;
+}
+
+export interface CommentAuthor {
+  displayName: string;
+  isCreator: boolean;
+}
+
+export interface CommentItem {
+  id: string;
+  projectId: string;
+  author: CommentAuthor;
+  timestampMs: number | null;
+  body: string;
+  createdAt: number;
+  updatedAt: number;
+  deleted: boolean;
+  replies: CommentItem[];
+  canDelete: boolean;
 }
 
 export type ErrorCode =
@@ -122,6 +196,7 @@ export type ErrorCode =
   | 'UPLOAD_NOT_FOUND'
   | 'UPLOAD_VERIFICATION_FAILED'
   | 'STORAGE_UNAVAILABLE'
+  | 'STORAGE_BUDGET_EXCEEDED'
   | 'CONFLICT'
   | 'INTERNAL_ERROR'
   | 'LINK_UNAVAILABLE'
@@ -129,7 +204,12 @@ export type ErrorCode =
   | 'PASSWORD_INVALID'
   | 'TOO_MANY_ATTEMPTS'
   | 'SHARING_DISABLED'
-  | 'INVALID_ROLE';
+  | 'FEEDBACK_DISABLED'
+  | 'INVALID_ROLE'
+  | 'INVALID_PARTICIPANT'
+  | 'COMMENT_NOT_FOUND'
+  | 'INVALID_PART'
+  | 'MULTIPART_ABORTED';
 
 export interface ApiErrorResponse {
   error: {
@@ -148,4 +228,5 @@ export interface SharingSettings {
   passwordAvailable: boolean;
   feedback_enabled: boolean;
   downloads_enabled: boolean;
+  hasPassword?: boolean;
 }

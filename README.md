@@ -7,7 +7,7 @@
 
 <p align="center">
   <a href="https://switchroom.ftallfettah.workers.dev">Open the live app</a> ·
-  <a href="https://github.com/Fettah010/switchroom/releases/tag/v0.6.0">v0.6.0 release</a>
+  <a href="https://github.com/Fettah010/switchroom/releases/tag/v0.7.0">v0.7.0 release</a>
 </p>
 
 <p align="center">
@@ -45,16 +45,18 @@
 
 <table align="center" width="100%">
   <tr>
-    <th align="center" width="25%">🎚️ Local compare</th>
-    <th align="center" width="25%">☁️ Cloud save</th>
-    <th align="center" width="25%">🔗 Guest review</th>
-    <th align="center" width="25%">🔒 Password links</th>
+    <th align="center" width="20%">🎚️ Local compare</th>
+    <th align="center" width="20%">☁️ Resumable R2</th>
+    <th align="center" width="20%">🔗 Guest review</th>
+    <th align="center" width="20%">💬 Client feedback</th>
+    <th align="center" width="20%">🔒 Password links</th>
   </tr>
   <tr>
     <td align="center">✅ Ready</td>
+    <td align="center">✅ Multipart ≥ 50 MB</td>
     <td align="center">✅ Ready</td>
-    <td align="center">✅ Ready</td>
-    <td align="center">⏸️ Off in v0.6</td>
+    <td align="center">✅ Ready in v0.7</td>
+    <td align="center">⏸️ Off</td>
   </tr>
 </table>
 
@@ -66,7 +68,9 @@
 
 - **Compare locally:** load WAV, MP3, FLAC, AAC or M4A files. One playhead keeps both versions aligned; switch mid-play with an adjustable 80–600 ms crossfade.
 - **Save when you choose:** upload a comparison to a private Cloudflare R2 project. Local playback never uploads files automatically.
+- **Resumable multipart uploads:** files $\ge 50\text{ MB}$ automatically use direct-to-R2 chunked multipart uploads with bounded concurrency, retry backoff, and in-flight storage reservation.
 - **Share a review:** create public, unlisted or private invite links with expiry and revocation. Clients can play, seek and switch versions without signing in.
+- **Client feedback & voting:** clients vote for their preferred version (`Original` vs `Edited`), post timestamped comments on the comparison timeline, and participate in discussion threads with creator moderation.
 - **Use it your way:** optional GitHub or Google sign-in for creators; guest creators can manage projects through a private recovery link.
 
 ## Privacy and limits
@@ -74,7 +78,7 @@
 - Local audio is read in the browser and never sent to a server. Workspace metadata may be saved locally; audio bytes are not.
 - Cloud audio is stored under opaque object keys. Playback uses short-lived, authorized URLs; revoking a link blocks new sessions, while an already-issued URL may work until it expires (up to five minutes).
 - Codec support depends on the browser. Switchroom does not convert or transcode files. Mobile Safari and real-device touch behavior still need manual verification.
-- Password-protected links, client comments, votes and downloads are not available in v0.6.
+- Password-protected links and direct track downloads are not enabled in v0.7.
 
 ## Run locally
 

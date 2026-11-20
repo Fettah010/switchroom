@@ -27,6 +27,13 @@ export interface CloudProject {
   retention_days: RetentionDays;
   crossfade_ms: number;
   presentation_layout: PresentationLayout;
+  feedback_enabled?: boolean;
+  votes?: {
+    original: number;
+    edited: number;
+    total: number;
+  };
+  comments_count?: number;
   created_at: number;
   updated_at: number;
   expires_at: number;

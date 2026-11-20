@@ -401,8 +401,8 @@ export async function resolveShareAccess(
     },
     capabilities: {
       listen: true,
-      feedback: false,
-      downloads: false,
+      feedback: project.feedback_enabled === 1,
+      downloads: project.downloads_enabled === 1,
     },
     passwordRequired,
     linkExpiresAt: link.expires_at,

@@ -128,8 +128,8 @@ export async function createProject(
       `INSERT INTO projects (
         id, owner_user_id, owner_capability_hash, title, description,
         status, visibility, sharing_visibility, retention_days, crossfade_ms, presentation_layout,
-        created_at, updated_at, expires_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        created_at, updated_at, expires_at, feedback_enabled, downloads_enabled
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 0)`,
     )
     .bind(
       projectId,
@@ -167,6 +167,8 @@ export async function createProject(
     deleted_at: null,
     public_indexing_enabled: 0,
     password_hash: null,
+    feedback_enabled: 1,
+    downloads_enabled: 0,
   };
 
   return {
@@ -189,6 +191,8 @@ export async function updateProject(
     visibility?: ProjectVisibility;
     publicIndexingEnabled?: boolean;
     passwordHash?: string | null;
+    feedbackEnabled?: boolean;
+    downloadsEnabled?: boolean;
   },
 ): Promise<ProjectRow> {
   const project = await getProjectById(db, id);
@@ -206,6 +210,8 @@ export async function updateProject(
   let sharingVisibility = project.sharing_visibility;
   let publicIndexingEnabled = project.public_indexing_enabled === 1;
   let passwordHash = project.password_hash;
+  let feedbackEnabled = project.feedback_enabled === 1;
+  let downloadsEnabled = project.downloads_enabled === 1;
 
   if (updates.title !== undefined) {
     const clean = updates.title.trim().slice(0, 120);
@@ -242,12 +248,21 @@ export async function updateProject(
     passwordHash = updates.passwordHash;
   }
 
+  if (updates.feedbackEnabled !== undefined) {
+    feedbackEnabled = updates.feedbackEnabled;
+  }
+
+  if (updates.downloadsEnabled !== undefined) {
+    downloadsEnabled = updates.downloadsEnabled;
+  }
+
   await db
     .prepare(
       `UPDATE projects SET
         title = ?, description = ?, retention_days = ?, expires_at = ?,
         crossfade_ms = ?, presentation_layout = ?, updated_at = ?,
-        sharing_visibility = ?, public_indexing_enabled = ?, password_hash = ?
+        sharing_visibility = ?, public_indexing_enabled = ?, password_hash = ?,
+        feedback_enabled = ?, downloads_enabled = ?
       WHERE id = ?`,
     )
     .bind(
@@ -261,6 +276,8 @@ export async function updateProject(
       sharingVisibility,
       publicIndexingEnabled ? 1 : 0,
       passwordHash,
+      feedbackEnabled ? 1 : 0,
+      downloadsEnabled ? 1 : 0,
       id,
     )
     .run();
@@ -276,6 +293,8 @@ export async function updateProject(
     sharing_visibility: sharingVisibility,
     public_indexing_enabled: publicIndexingEnabled ? 1 : 0,
     password_hash: passwordHash,
+    feedback_enabled: feedbackEnabled ? 1 : 0,
+    downloads_enabled: downloadsEnabled ? 1 : 0,
     updated_at: now,
   };
 }

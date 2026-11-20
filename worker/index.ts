@@ -7,6 +7,7 @@ import { projectsRoute } from './routes/projects';
 import { uploadsRoute } from './routes/uploads';
 import { assetsRoute } from './routes/assets';
 import { sharingRoute } from './routes/sharing';
+import { feedbackRoute } from './routes/feedback';
 import { devMockRoute } from './routes/devMock';
 import { resolveShareAccess, validateTokenShape } from './services/sharing';
 
@@ -43,6 +44,7 @@ app.route('/api', projectsRoute);
 app.route('/api', uploadsRoute);
 app.route('/api', assetsRoute);
 app.route('/api', sharingRoute);
+app.route('/api', feedbackRoute);
 app.route('/api', devMockRoute);
 
 // Review documents are noindex by default. An owner may explicitly opt an

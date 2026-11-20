@@ -19,6 +19,8 @@ export async function hashCapability(capability: string): Promise<string> {
   return hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
 }
 
+export const sha256Hex = hashCapability;
+
 /** Generates an opaque random UUID/identifier. */
 export function generateOpaqueId(prefix = 'proj'): string {
   const uuid = crypto.randomUUID().replace(/-/g, '');

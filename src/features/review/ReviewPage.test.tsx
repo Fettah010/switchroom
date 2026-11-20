@@ -149,4 +149,82 @@ describe('ReviewPage', () => {
     );
     expect(screen.getByText(/invalid, has been revoked, or has expired/)).toBeInTheDocument();
   });
+
+  it('renders ReviewFeedbackSection when capabilities.feedback is true', async () => {
+    const feedbackAccess: ShareAccessResponse = {
+      ...baseAccess,
+      capabilities: { listen: true, feedback: true, downloads: false },
+    };
+
+    mockFetch({
+      '/share/tok3/access': () =>
+        new Response(JSON.stringify(feedbackAccess), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        }),
+      '/share/tok3/playback/original': () =>
+        new Response(
+          JSON.stringify({
+            url: 'https://example.signed/original',
+            expiresAt: Date.now() + 300000,
+            mimeType: 'audio/wav',
+            sizeBytes: 1000,
+          }),
+          { status: 200, headers: { 'content-type': 'application/json' } },
+        ),
+      '/share/tok3/playback/edited': () =>
+        new Response(
+          JSON.stringify({
+            url: 'https://example.signed/edited',
+            expiresAt: Date.now() + 300000,
+            mimeType: 'audio/wav',
+            sizeBytes: 1000,
+          }),
+          { status: 200, headers: { 'content-type': 'application/json' } },
+        ),
+      '/share/tok3/vote': () =>
+        new Response(
+          JSON.stringify({
+            counts: { original: 2, edited: 4, total: 6 },
+            userVote: 'edited',
+          }),
+          { status: 200, headers: { 'content-type': 'application/json' } },
+        ),
+      '/share/tok3/comments': () =>
+        new Response(
+          JSON.stringify({
+            comments: [
+              {
+                id: 'comm1',
+                projectId: 'p1',
+                author: { displayName: 'Reviewer Mark', isCreator: false },
+                timestampMs: 12000,
+                body: 'Sibilance is well controlled here.',
+                createdAt: Date.now() - 5000,
+                updatedAt: Date.now() - 5000,
+                deleted: false,
+                replies: [],
+                canDelete: false,
+              },
+            ],
+            totalCount: 1,
+          }),
+          { status: 200, headers: { 'content-type': 'application/json' } },
+        ),
+    });
+
+    render(providers(<ReviewPage token="tok3" />));
+
+    await waitFor(() =>
+      expect(screen.getByRole('heading', { name: 'Session review' })).toBeInTheDocument(),
+    );
+
+    // Verify feedback section elements
+    await waitFor(() => {
+      expect(screen.getByText('Client Review & Feedback')).toBeInTheDocument();
+      expect(screen.getByText('Which version do you prefer?')).toBeInTheDocument();
+      expect(screen.getByText('Reviewer Mark')).toBeInTheDocument();
+      expect(screen.getByText('Sibilance is well controlled here.')).toBeInTheDocument();
+    });
+  });
 });

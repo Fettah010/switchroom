@@ -14,6 +14,7 @@ import {
   ShareApiError,
   type ShareAccessResponse,
 } from '../../lib/api/shareApi';
+import { ReviewFeedbackSection } from './ReviewFeedbackSection';
 
 type ReviewView = 'resolving' | 'password' | 'ready' | 'unavailable';
 type AssetRole = 'original' | 'edited';
@@ -735,6 +736,17 @@ export function ReviewPage({ token }: { token: string }) {
               </div>
             ) : null}
           </div>
+
+          {access && (
+            <ReviewFeedbackSection
+              projectId={access.project.id || ''}
+              token={token}
+              currentTimeMs={Math.round(currentTime * 1000)}
+              durationMs={Math.round((timelineMax || 0) * 1000)}
+              onSeek={(ts) => engine.seek(ts / 1000)}
+              feedbackEnabled={access.capabilities.feedback}
+            />
+          )}
         </div>
       </div>
     </div>

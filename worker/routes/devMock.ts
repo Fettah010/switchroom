@@ -1,5 +1,5 @@
 import { Hono } from 'hono';
-import type { Env } from '../types';
+import type { Env, UploadSessionRow } from '../types';
 
 export const devMockRoute = new Hono<{ Bindings: Env }>();
 
@@ -30,7 +30,56 @@ devMockRoute.put('/dev-r2-mock/:key', async (c) => {
     },
   });
 
-  return new Response(null, { status: 200 });
+  return new Response(null, { status: 200, headers: { ETag: '"mock-put-etag"' } });
+});
+
+/**
+ * Local development and testing mock endpoint for multipart part uploads (PUT).
+ * Accepts a part arrayBuffer, passes it to the R2 multipart upload, and returns an ETag.
+ */
+devMockRoute.put('/dev-r2-mock/multipart/:id/part/:partNumber', async (c) => {
+  if (!isLocalRequest(c.req.url)) return c.text('Not found', 404);
+  const uploadSessionId = decodeURIComponent(c.req.param('id'));
+  const partNumber = parseInt(c.req.param('partNumber'), 10);
+
+  if (!Number.isFinite(partNumber) || partNumber < 1) {
+    return c.text('Invalid part number', 400);
+  }
+
+  const session = await c.env.DB.prepare('SELECT * FROM upload_sessions WHERE id = ?')
+    .bind(uploadSessionId)
+    .first<UploadSessionRow>();
+
+  if (!session) {
+    return c.text('Upload session not found', 404);
+  }
+
+  const arrayBuffer = await c.req.raw.arrayBuffer();
+  let etag = `"mock-part-${partNumber}-${arrayBuffer.byteLength}"`;
+
+  if (
+    c.env.AUDIO_BUCKET &&
+    session.multipart_upload_id &&
+    typeof c.env.AUDIO_BUCKET.resumeMultipartUpload === 'function'
+  ) {
+    try {
+      const mp = c.env.AUDIO_BUCKET.resumeMultipartUpload(
+        session.object_key,
+        session.multipart_upload_id,
+      );
+      const uploaded = await mp.uploadPart(partNumber, arrayBuffer);
+      if (uploaded?.etag) {
+        etag = uploaded.etag.startsWith('"') ? uploaded.etag : `"${uploaded.etag}"`;
+      }
+    } catch (err) {
+      console.warn('Dev mock multipart uploadPart fallback:', err);
+    }
+  }
+
+  const headers = new Headers();
+  headers.set('ETag', etag);
+  headers.set('Access-Control-Expose-Headers', 'ETag');
+  return new Response(null, { status: 200, headers });
 });
 
 /**

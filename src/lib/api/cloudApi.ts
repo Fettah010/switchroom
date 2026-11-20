@@ -179,13 +179,16 @@ export interface InitUploadParams {
 
 export interface InitUploadResponse {
   uploadSessionId: string;
-  uploadUrl: string;
+  strategy: 'single_put' | 'multipart';
+  uploadUrl?: string;
+  partSize?: number;
+  totalParts?: number;
   objectKey: string;
   role: AssetRole;
   expiresAt: number;
 }
 
-/** Initializes an upload session and returns a short-lived presigned PUT URL */
+/** Initializes an upload session and returns a short-lived presigned PUT URL or multipart plan */
 export async function initUploadSession(params: InitUploadParams): Promise<InitUploadResponse> {
   return request<InitUploadResponse>('/api/uploads/init', {
     method: 'POST',
@@ -193,8 +196,11 @@ export async function initUploadSession(params: InitUploadParams): Promise<InitU
   });
 }
 
-/** Completes an upload session after the browser finishes PUT */
-export async function completeUploadSession(uploadSessionId: string): Promise<{
+/** Completes an upload session after browser finishes single PUT or multipart */
+export async function completeUploadSession(
+  uploadSessionId: string,
+  parts?: { partNumber: number; etag: string }[],
+): Promise<{
   success: boolean;
   projectStatus: string;
 }> {
@@ -202,6 +208,7 @@ export async function completeUploadSession(uploadSessionId: string): Promise<{
     `/api/uploads/${uploadSessionId}/complete`,
     {
       method: 'POST',
+      body: parts ? JSON.stringify({ parts }) : undefined,
     },
   );
 }
@@ -284,4 +291,29 @@ export function uploadFileToR2(
     xhr.setRequestHeader('Content-Type', file.type || 'audio/wav');
     xhr.send(file);
   });
+}
+
+export interface StorageUsageSummary {
+  committedBytes: number;
+  reservedBytes: number;
+  totalUsageBytes: number;
+  limitBytes: number;
+  globalCommittedBytes: number;
+  globalReservedBytes: number;
+  globalTotalBytes: number;
+  globalBudgetBytes: number;
+}
+
+/** Fetches storage usage summary for a specific project */
+export async function getProjectStorageSummary(projectId: string): Promise<StorageUsageSummary> {
+  const data = await request<{ storage: StorageUsageSummary }>(
+    `/api/projects/${encodeURIComponent(projectId)}/storage-summary`,
+  );
+  return data.storage;
+}
+
+/** Fetches storage usage summary for the authenticated user */
+export async function getUserStorageSummary(): Promise<StorageUsageSummary> {
+  const data = await request<{ storage: StorageUsageSummary }>('/api/storage-summary');
+  return data.storage;
 }

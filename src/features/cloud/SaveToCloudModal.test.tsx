@@ -8,6 +8,7 @@ import { PlayerProvider } from '../../app/providers/PlayerProvider';
 import { InMemoryWorkspaceRepository } from '../../workspaces/inMemoryWorkspaceRepository';
 import { setLoadedFile, clearLoadedFiles } from '../../audio/mediaFileRegistry';
 import * as cloudApi from '../../lib/api/cloudApi';
+import * as multipartApi from '../../lib/api/multipartUpload';
 
 vi.mock('../../lib/api/cloudApi', () => ({
   getAuthProviders: vi
@@ -28,6 +29,7 @@ vi.mock('../../lib/api/cloudApi', () => ({
   }),
   initUploadSession: vi.fn().mockResolvedValue({
     uploadSessionId: 'upsess_123',
+    strategy: 'single_put',
     uploadUrl: 'https://mock-r2/upload',
     objectKey: 'projects/proj_new/asset.audio',
     role: 'original',
@@ -36,6 +38,12 @@ vi.mock('../../lib/api/cloudApi', () => ({
   uploadFileToR2: vi.fn().mockResolvedValue(undefined),
   completeUploadSession: vi.fn().mockResolvedValue({ success: true, projectStatus: 'ready' }),
   cancelUploadSession: vi.fn().mockResolvedValue({ success: true }),
+}));
+
+vi.mock('../../lib/api/multipartUpload', () => ({
+  uploadFileMultipart: vi.fn().mockResolvedValue({
+    parts: [{ partNumber: 1, etag: '"etag-1"' }],
+  }),
 }));
 
 function makeMockAudioFile(name: string, sizeBytes: number): File {
@@ -75,19 +83,34 @@ describe('SaveToCloudModal', () => {
     expect(uploadBtn.hasAttribute('disabled')).toBe(true);
   });
 
-  it('rejects files exceeding 100 MB quota limit', () => {
-    const hugeFile = makeMockAudioFile('huge-stem.wav', 105 * 1024 * 1024);
+  it('routes files above threshold to multipart upload without arbitrary per-file cap rejection', async () => {
+    const largeFile = makeMockAudioFile('large-stem.wav', 120 * 1024 * 1024);
     const normalFile = makeMockAudioFile('normal-stem.wav', 20 * 1024 * 1024);
-    Object.defineProperty(hugeFile, 'size', { value: 105 * 1024 * 1024 });
+    Object.defineProperty(largeFile, 'size', { value: 120 * 1024 * 1024 });
 
-    setLoadedFile('original', hugeFile);
+    setLoadedFile('original', largeFile);
     setLoadedFile('edited', normalFile);
+
+    vi.mocked(cloudApi.initUploadSession).mockResolvedValueOnce({
+      uploadSessionId: 'upsess_mp_1',
+      strategy: 'multipart',
+      partSize: 8 * 1024 * 1024,
+      totalParts: 15,
+      objectKey: 'projects/proj_new/orig.audio',
+      role: 'original',
+      expiresAt: Date.now() + 1800000,
+    });
 
     renderModal();
 
-    expect(screen.getByText('Exceeds 100 MB limit')).toBeDefined();
     const uploadBtn = screen.getByRole('button', { name: /start cloud upload/i });
-    expect(uploadBtn.hasAttribute('disabled')).toBe(true);
+    expect(uploadBtn.hasAttribute('disabled')).toBe(false);
+
+    fireEvent.click(uploadBtn);
+
+    await waitFor(() => {
+      expect(multipartApi.uploadFileMultipart).toHaveBeenCalled();
+    });
   });
 
   it('allows retention picker selection between 1, 7, 14, 30, 60, 90 days', () => {
@@ -101,11 +124,12 @@ describe('SaveToCloudModal', () => {
     expect(day1Btn.className).not.toContain('pill-btn--active');
   });
 
-  it('completes direct upload and presents guest owner recovery link', async () => {
-    const orig = makeMockAudioFile('orig.wav', 5 * 1024 * 1024);
-    const edit = makeMockAudioFile('edit.wav', 5 * 1024 * 1024);
-    setLoadedFile('original', orig);
-    setLoadedFile('edited', edit);
+  it('uploads valid files, verifies assets, and displays recovery link for guests', async () => {
+    const fileA = makeMockAudioFile('mix-orig.wav', 5 * 1024 * 1024);
+    const fileB = makeMockAudioFile('mix-edit.wav', 5 * 1024 * 1024);
+
+    setLoadedFile('original', fileA);
+    setLoadedFile('edited', fileB);
 
     renderModal();
 
@@ -115,15 +139,19 @@ describe('SaveToCloudModal', () => {
     fireEvent.click(uploadBtn);
 
     await waitFor(() => {
-      expect(cloudApi.createCloudProject).toHaveBeenCalled();
-      expect(cloudApi.initUploadSession).toHaveBeenCalled();
-      expect(cloudApi.uploadFileToR2).toHaveBeenCalled();
-      expect(cloudApi.completeUploadSession).toHaveBeenCalled();
+      expect(cloudApi.createCloudProject).toHaveBeenCalledWith({
+        title: 'Audio Comparison',
+        retentionDays: 30,
+        crossfadeMs: 180,
+        presentationLayout: 'standard',
+      });
+      expect(cloudApi.initUploadSession).toHaveBeenCalledTimes(2);
+      expect(cloudApi.uploadFileToR2).toHaveBeenCalledTimes(2);
+      expect(cloudApi.completeUploadSession).toHaveBeenCalledTimes(2);
     });
 
     await waitFor(() => {
       expect(screen.getByText('Save your project-owner link')).toBeDefined();
-      expect(screen.getByRole('button', { name: /copy link/i })).toBeDefined();
     });
   });
 });

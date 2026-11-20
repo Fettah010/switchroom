@@ -7,6 +7,7 @@ import { WorkspaceProvider } from '../../app/providers/WorkspaceProvider';
 import { PlayerProvider } from '../../app/providers/PlayerProvider';
 import { InMemoryWorkspaceRepository } from '../../workspaces/inMemoryWorkspaceRepository';
 import * as cloudApi from '../../lib/api/cloudApi';
+import * as feedbackApi from '../../lib/api/feedbackApi';
 import type { CloudProject } from './cloudTypes';
 
 vi.mock('../../lib/api/cloudApi', async (importOriginal) => {
@@ -21,6 +22,16 @@ vi.mock('../../lib/api/cloudApi', async (importOriginal) => {
     listBatchProjects: vi.fn().mockResolvedValue([]),
     deleteCloudProject: vi.fn().mockResolvedValue({ success: true }),
     claimGuestProject: vi.fn().mockResolvedValue({ success: true }),
+    getUserStorageSummary: vi.fn().mockResolvedValue({
+      committedBytes: 50 * 1024 * 1024,
+      reservedBytes: 0,
+      totalUsageBytes: 50 * 1024 * 1024,
+      limitBytes: 2 * 1024 * 1024 * 1024,
+      globalCommittedBytes: 100 * 1024 * 1024,
+      globalReservedBytes: 0,
+      globalTotalBytes: 100 * 1024 * 1024,
+      globalBudgetBytes: 8 * 1024 * 1024 * 1024,
+    }),
     getPlaybackInfo: vi.fn().mockResolvedValue({
       playbackUrl: 'https://mock-r2/audio.wav',
       role: 'original',
@@ -28,6 +39,43 @@ vi.mock('../../lib/api/cloudApi', async (importOriginal) => {
       mimeType: 'audio/wav',
       sizeBytes: 1024,
       expiresAt: Date.now() + 3600000,
+    }),
+  };
+});
+
+vi.mock('../../lib/api/feedbackApi', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../lib/api/feedbackApi')>();
+  return {
+    ...actual,
+    listProjectComments: vi.fn().mockResolvedValue({
+      comments: [
+        {
+          id: 'c1',
+          projectId: 'proj_ready',
+          author: { displayName: 'Client Dave', isCreator: false },
+          timestampMs: 45000,
+          body: 'Low end feels punchier on B.',
+          createdAt: Date.now() - 3600000,
+          updatedAt: Date.now() - 3600000,
+          deleted: false,
+          replies: [
+            {
+              id: 'c2',
+              projectId: 'proj_ready',
+              author: { displayName: 'Engineer Alice', isCreator: true },
+              timestampMs: null,
+              body: 'Added a +1.5dB bell at 60Hz.',
+              createdAt: Date.now() - 1800000,
+              updatedAt: Date.now() - 1800000,
+              deleted: false,
+              replies: [],
+              canDelete: true,
+            },
+          ],
+          canDelete: true,
+        },
+      ],
+      totalCount: 2,
     }),
   };
 });
@@ -42,6 +90,9 @@ const mockProjects: CloudProject[] = [
     retention_days: 30,
     crossfade_ms: 180,
     presentation_layout: 'standard',
+    feedback_enabled: true,
+    votes: { original: 3, edited: 5, total: 8 },
+    comments_count: 2,
     created_at: Date.now() - 86400000,
     updated_at: Date.now() - 86400000,
     expires_at: Date.now() + 29 * 86400000,
@@ -60,6 +111,9 @@ const mockProjects: CloudProject[] = [
     retention_days: 7,
     crossfade_ms: 180,
     presentation_layout: 'standard',
+    feedback_enabled: true,
+    votes: { original: 0, edited: 0, total: 0 },
+    comments_count: 0,
     created_at: Date.now() - 86400000,
     updated_at: Date.now() - 86400000,
     expires_at: Date.now() + 6 * 86400000,
@@ -111,6 +165,42 @@ describe('CloudDashboardModal', () => {
     expect(screen.getByText('Unfinished Comparison')).toBeDefined();
     expect(screen.getByText('draft')).toBeDefined();
     expect(screen.getAllByText(/orig\.wav/).length).toBeGreaterThan(0);
+  });
+
+  it('displays storage quota meter and vote counts in project cards', async () => {
+    renderModal();
+
+    await waitFor(() => {
+      expect(screen.getByText(/Storage Quota:/i)).toBeDefined();
+    });
+
+    // Verify vote counts rendered for proj_ready
+    expect(screen.getByText('3')).toBeDefined(); // Orig votes
+    expect(screen.getByText('5')).toBeDefined(); // Edit votes
+    expect(screen.getByText('8')).toBeDefined(); // Total votes
+    expect(screen.getByText(/2 comments/i)).toBeDefined();
+  });
+
+  it('toggles comments drawer and displays comments with creator badges', async () => {
+    renderModal();
+
+    await waitFor(() => {
+      expect(screen.getByText(/2 comments/i)).toBeDefined();
+    });
+
+    const toggleBtn = screen.getByRole('button', {
+      name: /toggle comments for acoustic master v1/i,
+    });
+    fireEvent.click(toggleBtn);
+
+    await waitFor(() => {
+      expect(feedbackApi.listProjectComments).toHaveBeenCalledWith('proj_ready');
+      expect(screen.getByText('Client Dave')).toBeDefined();
+      expect(screen.getByText('Low end feels punchier on B.')).toBeDefined();
+      expect(screen.getByText('00:45')).toBeDefined(); // timestamp formatted
+      expect(screen.getByText('Engineer Alice')).toBeDefined();
+      expect(screen.getByText(/: Added a \+1\.5dB bell at 60Hz\./i)).toBeDefined();
+    });
   });
 
   it('allows deleting a project with confirmation', async () => {

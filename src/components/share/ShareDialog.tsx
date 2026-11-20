@@ -40,6 +40,7 @@ interface ShareForm {
   visibility: Visibility;
   public_indexing_enabled: boolean;
   password: string | null;
+  feedback_enabled: boolean;
 }
 
 interface LinkForm {
@@ -147,6 +148,7 @@ export function ShareDialog({ projectId, onClose }: ShareDialogProps) {
     visibility: 'private',
     public_indexing_enabled: false,
     password: null,
+    feedback_enabled: true,
   });
   const [linkForm, setLinkForm] = useState<LinkForm>({ label: '', expiry: null });
 
@@ -162,6 +164,7 @@ export function ShareDialog({ projectId, onClose }: ShareDialogProps) {
         visibility: data.project.visibility,
         public_indexing_enabled: Boolean(data.project.public_indexing_enabled),
         password: null,
+        feedback_enabled: data.project.feedback_enabled !== false,
       });
       setLinkForm({ label: '', expiry: null });
     })();
@@ -187,9 +190,11 @@ export function ShareDialog({ projectId, onClose }: ShareDialogProps) {
 
   const hasUnsaved = useCallback((): boolean => {
     if (!data) return false;
+    const currentFeedback = data.project.feedback_enabled !== false;
     return (
       settings.visibility !== data.project.visibility ||
       settings.public_indexing_enabled !== data.project.public_indexing_enabled ||
+      settings.feedback_enabled !== currentFeedback ||
       settings.password !== null
     );
   }, [data, settings]);
@@ -204,6 +209,10 @@ export function ShareDialog({ projectId, onClose }: ShareDialogProps) {
     if (settings.visibility !== data.project.visibility) updates.visibility = settings.visibility;
     if (settings.public_indexing_enabled !== data.project.public_indexing_enabled) {
       updates.public_indexing_enabled = settings.public_indexing_enabled;
+    }
+    const currentFeedback = data.project.feedback_enabled !== false;
+    if (settings.feedback_enabled !== currentFeedback) {
+      updates.feedback_enabled = settings.feedback_enabled;
     }
     if (settings.password !== null) {
       updates.password = settings.password === '' ? null : settings.password;
@@ -381,6 +390,24 @@ export function ShareDialog({ projectId, onClose }: ShareDialogProps) {
               </p>
             </div>
           )}
+
+          {/* Feedback & Preference Voting */}
+          <div className="form-group">
+            <label className="form-label">
+              <input
+                type="checkbox"
+                checked={settings.feedback_enabled}
+                onChange={(e) => {
+                  setSettings((prev) => ({ ...prev, feedback_enabled: e.target.checked }));
+                }}
+              />{' '}
+              Enable client feedback and preference voting
+            </label>
+            <p className="field-hint">
+              When enabled, clients can vote for their preferred version and leave timestamped
+              comments.
+            </p>
+          </div>
 
           {/* Password protection */}
           <div className="form-group share-dialog__password">

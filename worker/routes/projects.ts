@@ -12,6 +12,7 @@ import {
 } from '../services/projects';
 import { getAuthenticatedUser, resolveProjectOwner } from '../services/auth';
 import { hashCapability } from '../services/crypto';
+import { getVoteCounts } from '../services/feedback';
 
 export const projectsRoute = new Hono<{ Bindings: Env }>();
 
@@ -40,13 +41,22 @@ projectsRoute.get('/projects', async (c) => {
 
   const projects = await listProjectsForUser(c.env.DB, user.id);
 
-  // Attach assets and status reconciliation to each project
+  // Attach assets, feedback stats, and status reconciliation to each project
   const detailed = await Promise.all(
     projects.map(async (project) => {
       const assets = await getProjectAssets(c.env.DB, project.id);
+      const votes = await getVoteCounts(c.env.DB, project.id);
+      const commentCountRow = await c.env.DB.prepare(
+        'SELECT COUNT(*) AS count FROM comments WHERE project_id = ? AND deleted_at IS NULL',
+      )
+        .bind(project.id)
+        .first<{ count: number }>();
       return {
         ...project,
         owner_capability_hash: undefined, // Redact
+        feedback_enabled: project.feedback_enabled === 1,
+        votes,
+        comments_count: Number(commentCountRow?.count ?? 0),
         assets,
       };
     }),
@@ -68,6 +78,12 @@ projectsRoute.post('/projects/batch', async (c) => {
   const projects = await Promise.all(
     rawProjects.map(async (p) => {
       const assets = await getProjectAssets(c.env.DB, p.id);
+      const votes = await getVoteCounts(c.env.DB, p.id);
+      const commentCountRow = await c.env.DB.prepare(
+        'SELECT COUNT(*) AS count FROM comments WHERE project_id = ? AND deleted_at IS NULL',
+      )
+        .bind(p.id)
+        .first<{ count: number }>();
       return {
         id: p.id,
         title: p.title,
@@ -79,6 +95,9 @@ projectsRoute.post('/projects/batch', async (c) => {
         crossfade_ms: p.crossfade_ms,
         presentation_layout: p.presentation_layout,
         isGuestOwned: Boolean(p.owner_capability_hash),
+        feedback_enabled: p.feedback_enabled === 1,
+        votes,
+        comments_count: Number(commentCountRow?.count ?? 0),
         assets: {
           original: assets.original
             ? {
@@ -208,6 +227,8 @@ projectsRoute.patch('/projects/:id', async (c) => {
       retentionDays: body.retentionDays,
       crossfadeMs: body.crossfadeMs,
       presentationLayout: body.presentationLayout,
+      feedbackEnabled: body.feedbackEnabled ?? body.feedback_enabled,
+      downloadsEnabled: body.downloadsEnabled ?? body.downloads_enabled,
     });
 
     const assets = await getProjectAssets(c.env.DB, projectId);

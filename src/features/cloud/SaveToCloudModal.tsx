@@ -1,4 +1,4 @@
-// Save to Cloud Modal with Direct R2 Upload & Progress for Switchroom v0.5.0
+// Save to Cloud Modal with Direct R2 Upload & Progress for Switchroom v0.7.0
 
 import { useRef, useState } from 'react';
 import { AlertTriangle, Check, Clock, Copy, HardDrive, Lock, Upload, X } from 'lucide-react';
@@ -15,9 +15,9 @@ import {
   uploadFileToR2,
   cancelUploadSession,
 } from '../../lib/api/cloudApi';
+import { uploadFileMultipart } from '../../lib/api/multipartUpload';
 import { saveGuestProject } from '../../lib/guestStorage';
 
-const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100 MB
 const RETENTION_OPTIONS: RetentionDays[] = [1, 7, 14, 30, 60, 90];
 
 function SaveToCloudDialog({ onClose }: { onClose: () => void }) {
@@ -47,14 +47,7 @@ function SaveToCloudDialog({ onClose }: { onClose: () => void }) {
   const originalFile = getLoadedFile('original');
   const editedFile = getLoadedFile('edited');
 
-  const originalTooLarge = Boolean(originalFile && originalFile.size > MAX_FILE_SIZE);
-  const editedTooLarge = Boolean(editedFile && editedFile.size > MAX_FILE_SIZE);
-  const canUpload =
-    Boolean(originalFile && editedFile) &&
-    !originalTooLarge &&
-    !editedTooLarge &&
-    !isUploading &&
-    title.trim().length > 0;
+  const canUpload = Boolean(originalFile && editedFile) && !isUploading && title.trim().length > 0;
 
   const handleCancelUpload = async () => {
     if (abortControllerRef.current) {
@@ -117,19 +110,37 @@ function SaveToCloudDialog({ onClose }: { onClose: () => void }) {
 
       setOriginalProgress((prev) => (prev ? { ...prev, status: 'uploading' } : null));
 
-      await uploadFileToR2(
-        origSession.uploadUrl,
-        originalFile,
-        (loaded, total) => {
-          setOriginalProgress((prev) =>
-            prev ? { ...prev, bytesUploaded: loaded, sizeBytes: total } : null,
-          );
-        },
-        signal,
-      );
+      if (origSession.strategy === 'multipart') {
+        const { parts } = await uploadFileMultipart({
+          uploadSessionId: origSession.uploadSessionId,
+          file: originalFile,
+          partSize: origSession.partSize || 8 * 1024 * 1024,
+          totalParts: origSession.totalParts || 1,
+          onProgress: (p) => {
+            setOriginalProgress((prev) =>
+              prev ? { ...prev, bytesUploaded: p.bytesUploaded, sizeBytes: p.totalBytes } : null,
+            );
+          },
+          signal,
+        });
 
-      setOriginalProgress((prev) => (prev ? { ...prev, status: 'verifying' } : null));
-      await completeUploadSession(origSession.uploadSessionId);
+        setOriginalProgress((prev) => (prev ? { ...prev, status: 'verifying' } : null));
+        await completeUploadSession(origSession.uploadSessionId, parts);
+      } else {
+        await uploadFileToR2(
+          origSession.uploadUrl!,
+          originalFile,
+          (loaded, total) => {
+            setOriginalProgress((prev) =>
+              prev ? { ...prev, bytesUploaded: loaded, sizeBytes: total } : null,
+            );
+          },
+          signal,
+        );
+
+        setOriginalProgress((prev) => (prev ? { ...prev, status: 'verifying' } : null));
+        await completeUploadSession(origSession.uploadSessionId);
+      }
       setOriginalProgress((prev) => (prev ? { ...prev, status: 'ready' } : null));
 
       // 3. Upload Edited (Slot B)
@@ -152,19 +163,37 @@ function SaveToCloudDialog({ onClose }: { onClose: () => void }) {
 
       setEditedProgress((prev) => (prev ? { ...prev, status: 'uploading' } : null));
 
-      await uploadFileToR2(
-        editSession.uploadUrl,
-        editedFile,
-        (loaded, total) => {
-          setEditedProgress((prev) =>
-            prev ? { ...prev, bytesUploaded: loaded, sizeBytes: total } : null,
-          );
-        },
-        signal,
-      );
+      if (editSession.strategy === 'multipart') {
+        const { parts } = await uploadFileMultipart({
+          uploadSessionId: editSession.uploadSessionId,
+          file: editedFile,
+          partSize: editSession.partSize || 8 * 1024 * 1024,
+          totalParts: editSession.totalParts || 1,
+          onProgress: (p) => {
+            setEditedProgress((prev) =>
+              prev ? { ...prev, bytesUploaded: p.bytesUploaded, sizeBytes: p.totalBytes } : null,
+            );
+          },
+          signal,
+        });
 
-      setEditedProgress((prev) => (prev ? { ...prev, status: 'verifying' } : null));
-      await completeUploadSession(editSession.uploadSessionId);
+        setEditedProgress((prev) => (prev ? { ...prev, status: 'verifying' } : null));
+        await completeUploadSession(editSession.uploadSessionId, parts);
+      } else {
+        await uploadFileToR2(
+          editSession.uploadUrl!,
+          editedFile,
+          (loaded, total) => {
+            setEditedProgress((prev) =>
+              prev ? { ...prev, bytesUploaded: loaded, sizeBytes: total } : null,
+            );
+          },
+          signal,
+        );
+
+        setEditedProgress((prev) => (prev ? { ...prev, status: 'verifying' } : null));
+        await completeUploadSession(editSession.uploadSessionId);
+      }
       setEditedProgress((prev) => (prev ? { ...prev, status: 'ready' } : null));
 
       // 4. Finished successfully
@@ -248,25 +277,41 @@ function SaveToCloudDialog({ onClose }: { onClose: () => void }) {
                       aria-label="Owner recovery link"
                       className="recovery-input"
                     />
-                    <button type="button" className="secondary-btn" onClick={copyRecoveryLink}>
+                    <button
+                      type="button"
+                      className="btn btn--sm btn--primary copy-btn"
+                      onClick={copyRecoveryLink}
+                    >
                       {copiedLink ? <Check size={14} /> : <Copy size={14} />}
-                      <span>{copiedLink ? 'Copied!' : 'Copy link'}</span>
+                      <span>{copiedLink ? 'Copied' : 'Copy link'}</span>
                     </button>
                   </div>
                 </div>
               )}
 
-              <div className="modal-actions">
-                <button type="button" className="primary-btn" onClick={onClose}>
+              <div className="modal-actions modal-actions--center">
+                <button type="button" className="btn btn--primary" onClick={onClose}>
                   Done
                 </button>
               </div>
             </div>
           ) : (
-            <>
-              <p className="cloud-explainer">
-                Upload your Original and Edited tracks to private cloud storage. Local comparison
-                continues to work completely offline.
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                handleStartUpload();
+              }}
+              className="cloud-form"
+            >
+              <p className="modal-description">
+                {user ? (
+                  <>Saving as signed-in creator ({user.name || user.email}).</>
+                ) : (
+                  <>
+                    Saving as a <strong>guest creator</strong>. You will receive an owner link to
+                    reopen and manage this comparison without needing an account.
+                  </>
+                )}
               </p>
 
               {generalError && (
@@ -314,11 +359,9 @@ function SaveToCloudDialog({ onClose }: { onClose: () => void }) {
               </div>
 
               <div className="file-review-list">
-                <h4>Audio tracks to upload (100 MB max each)</h4>
+                <h4>Audio tracks to upload</h4>
 
-                <div
-                  className={`file-review-item ${originalTooLarge ? 'file-review-item--error' : ''}`}
-                >
+                <div className="file-review-item">
                   <div className="file-info">
                     <span className="role-badge">Track A (Original)</span>
                     <span className="file-name">
@@ -342,12 +385,9 @@ function SaveToCloudDialog({ onClose }: { onClose: () => void }) {
                       )}
                     </div>
                   )}
-                  {originalTooLarge && <span className="file-error">Exceeds 100 MB limit</span>}
                 </div>
 
-                <div
-                  className={`file-review-item ${editedTooLarge ? 'file-review-item--error' : ''}`}
-                >
+                <div className="file-review-item">
                   <div className="file-info">
                     <span className="role-badge">Track B (Edited)</span>
                     <span className="file-name">
@@ -370,53 +410,27 @@ function SaveToCloudDialog({ onClose }: { onClose: () => void }) {
                       )}
                     </div>
                   )}
-                  {editedTooLarge && <span className="file-error">Exceeds 100 MB limit</span>}
                 </div>
-              </div>
-
-              <div className="auth-ownership-status">
-                {user ? (
-                  <div className="auth-status-card">
-                    <Check size={14} className="text-emerald-500" />
-                    <span>
-                      Signed in as <strong>{user.email}</strong>. This project will be linked to
-                      your account.
-                    </span>
-                  </div>
-                ) : (
-                  <div className="auth-status-card">
-                    <Lock size={14} />
-                    <span>
-                      Saving in <strong>Guest Creator</strong> mode. You will receive an owner
-                      recovery link to manage this project.
-                    </span>
-                  </div>
-                )}
               </div>
 
               <div className="modal-actions">
                 {isUploading ? (
-                  <button type="button" className="danger-btn" onClick={handleCancelUpload}>
+                  <button type="button" className="btn btn--secondary" onClick={handleCancelUpload}>
                     Cancel upload
                   </button>
                 ) : (
                   <>
-                    <button type="button" className="secondary-btn" onClick={onClose}>
+                    <button type="button" className="btn btn--secondary" onClick={onClose}>
                       Cancel
                     </button>
-                    <button
-                      type="button"
-                      className="primary-btn"
-                      onClick={handleStartUpload}
-                      disabled={!canUpload}
-                    >
-                      <Upload size={15} />
+                    <button type="submit" className="btn btn--primary" disabled={!canUpload}>
+                      <Upload size={14} />
                       <span>Start cloud upload</span>
                     </button>
                   </>
                 )}
               </div>
-            </>
+            </form>
           )}
         </div>
       </div>

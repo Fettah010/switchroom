@@ -56,7 +56,9 @@ These are the decisions supplied for this plan and should be treated as product 
 ### Product assumptions used to make the plan buildable
 
 - Cloud projects default to **30 days** of retention. The creator can select 1, 7, 14, 30, 60 or 90 days. The free launch should cap cloud retention at 90 days to protect the small storage pool. Local-only comparisons do not need server-side expiry.
-- Initial cloud upload limit: **100 MB per audio file**. Raise it only after resumable multipart uploads are implemented and tested. The application also enforces a shared storage budget below the provider's free allowance.
+- The v0.6 implementation starts with a **100 MiB per-file cap**. In v0.7, remove the application's fixed per-file cap when direct resumable multipart uploads are production-ready. Enforce provider/backend technical limits and shared account/project storage budgets instead; a multipart strategy threshold may choose the upload method, but must never reject a file by itself.
+- Use Switchroom-managed R2 efficiently: measure current and in-flight storage, reserve headroom for multipart parts and cleanup, and stop new R2 writes before the configured free-tier budget is exceeded. A linked personal provider in v0.8 uses the owner's own provider quota and is reported separately from Switchroom R2 usage.
+- v0.8 may connect Google Drive and Dropbox as optional storage destinations. Provider integration is opt-in, least-privilege, and must preserve private review access without creating public provider links or exposing provider credentials to the browser.
 - Modern desktop Chrome, Edge, Firefox and Safari are the primary target browsers. Mobile Safari and Chrome are supported with explicit testing, not assumptions.
 - Google and GitHub OAuth are the default sign-in options. Email/password and email notifications are not required for v1.0 because reliable outbound email requires an additional sending provider and sender-domain configuration.
 - No custom domain is required. The first public deployment can use a Cloudflare `workers.dev` address. Buying a domain is optional and not part of the free-cost promise.
@@ -156,24 +158,24 @@ flowchart TB
 
 ### 4.3 Why direct-to-R2 uploads matter
 
-Do not stream 100 MB audio files through the Worker API. The Worker should authorize the upload and issue a short-lived, single-object presigned URL. The browser uploads the file directly to R2. After upload, the browser asks the Worker to finalize; the Worker checks that the expected object exists and that the size/type match the upload session before marking the asset ready.
+Never proxy full audio files through the Worker. The Worker authorizes an upload and issues short-lived, object-scoped URLs; the browser sends bytes directly to the selected storage provider. v0.5/v0.6 use a single presigned R2 PUT. In v0.7, keep that path for small files and use presigned multipart part URLs for larger files. The strategy threshold selects a transfer method, not a product size limit. On completion, the Worker verifies object existence, exact byte size, content type and upload/project quota before marking the asset ready.
 
 This avoids using the Worker as a large-file proxy and avoids exposing R2 access keys in browser code. Generate signatures in the Worker with a small SigV4-compatible helper such as `aws4fetch` (or the AWS SDK with the required Worker compatibility settings): the R2 Workers binding itself does not create S3 presigned URLs. Presigned URLs are bearer credentials: keep them short-lived, restrict the permitted method/object/content type, and never store them as permanent share links.
 
-R2 browser access requires a deliberately configured CORS policy for the application's exact origin. Do not make the whole bucket public. The playback page should request temporary GET access only after the share permissions have been checked.
+R2 browser access requires a deliberately configured CORS policy for the application's exact origin. Do not make the whole bucket public. The playback page should request temporary GET access only after the share permissions have been checked. R2's provider limits still apply, but Switchroom must not impose a separate hard-coded per-track maximum after the v0.7 upload redesign.
 
 ### 4.4 Free-tier budget and safety limits
 
-The values below are the current published allowances checked on 8 November 2026. Provider limits can change. Recheck them before deployment and periodically thereafter.
+The values below are the current published allowances checked on 19 November 2026. Provider limits can change. Recheck them before deployment and periodically thereafter.
 
-| Service                | Current free allowance relevant to this app                                                                                                                                | App-side rule                                                                                                                                                          |
-| ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Cloudflare Workers     | 100,000 dynamic requests/day and 10 ms CPU time per invocation on Free. Static asset requests are free and unlimited. Free accounts currently allow up to 5 Cron Triggers. | Keep API handlers small; never decode or transcode audio inside a Worker. Cache public static assets and use one cleanup schedule.                                     |
-| Cloudflare D1          | 5 million rows read/day, 100,000 rows written/day, 500 MB maximum per free database and 5 GB total free account storage.                                                   | Store metadata only; index project/share lookups; paginate comments; avoid unbounded queries.                                                                          |
-| Cloudflare R2 Standard | 10 GB-month storage, 1 million Class A operations/month and 10 million Class B operations/month; Internet egress is free.                                                  | Set a hard application storage ceiling around 8–8.5 GB, leaving headroom for temporary uploads and cleanup. Reject new uploads cleanly when the app budget is reached. |
-| Cloudflare Turnstile   | Free plan supports unlimited challenges/verification requests, with up to 20 widgets per account.                                                                          | Use one production widget for guest-sensitive actions; do not challenge every normal page view.                                                                        |
-| GitHub Actions         | Standard GitHub-hosted runner usage is free for public repositories.                                                                                                       | Keep workflow artifacts small; never put credentials in repository files or logs.                                                                                      |
-| Resend (optional only) | Free plan currently lists 3,000 emails/month and 100/day.                                                                                                                  | Do not make email necessary for core workflows. Add only if notifications are genuinely needed and a sender domain is configured.                                      |
+| Service                | Current free allowance relevant to this app                                                                                                                                | App-side rule                                                                                                                                                                                                                            |
+| ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Cloudflare Workers     | 100,000 dynamic requests/day and 10 ms CPU time per invocation on Free. Static asset requests are free and unlimited. Free accounts currently allow up to 5 Cron Triggers. | Keep API handlers small; never decode or transcode audio inside a Worker. Cache public static assets and use one cleanup schedule.                                                                                                       |
+| Cloudflare D1          | 5 million rows read/day, 100,000 rows written/day, 500 MB maximum per free database and 5 GB total free account storage.                                                   | Store metadata only; index project/share lookups; paginate comments; avoid unbounded queries.                                                                                                                                            |
+| Cloudflare R2 Standard | 10 GB-month storage, 1 million Class A operations/month and 10 million Class B operations/month; Internet egress is free.                                                  | Track stored and in-flight multipart bytes; set a configurable aggregate app budget around 8 GB to leave cleanup/headroom. Stop R2 writes before the budget is exceeded; never substitute a fixed per-file cap for aggregate accounting. |
+| Cloudflare Turnstile   | Free plan supports unlimited challenges/verification requests, with up to 20 widgets per account.                                                                          | Use one production widget for guest-sensitive actions; do not challenge every normal page view.                                                                                                                                          |
+| GitHub Actions         | Standard GitHub-hosted runner usage is free for public repositories.                                                                                                       | Keep workflow artifacts small; never put credentials in repository files or logs.                                                                                                                                                        |
+| Resend (optional only) | Free plan currently lists 3,000 emails/month and 100/day.                                                                                                                  | Do not make email necessary for core workflows. Add only if notifications are genuinely needed and a sender domain is configured.                                                                                                        |
 
 **Important cost behaviour:** a free tier is a quota, not infinite capacity. Some services reject work after the free quota; R2 storage and operation overages may become billable if billing is enabled. Before enabling billing on any provider, review its current overage behaviour. Keep app-level quotas below provider limits, disable unnecessary paid upgrades, and show storage/usage warnings in the owner dashboard.
 
@@ -322,6 +324,11 @@ Required by v1.0:
 - Use thin rules, soft radial/mesh gradients, quiet noise/grain and subtle topographic or frequency-inspired line patterns.
 - Avoid overusing glassmorphism, glossy gradients, giant blur panels, glowing borders or generic dashboard cards.
 - Audio waveforms should be functional and readable, not just decorative.
+- Use viewport width intentionally: maintain a readable content maximum without forcing the player and waveform into a narrow desktop column when a wider grid is useful.
+- Give local, cloud, syncing, offline and unavailable states distinct text/icon treatments derived from current persistence state, not stale labels.
+- Align project-card metadata to a stable grid. Prefer familiar icons for repeated actions, with accessible names/tooltips and visible labels where needed.
+- Use progress indicators for real work and show percentages only when progress can be measured.
+- Keep background texture, grain, gradients and particles low contrast, sparse and performant, subordinate to the audio interface.
 
 ### 7.2 Theme behaviour
 
@@ -447,23 +454,25 @@ Store metadata and access state in D1. Store audio bytes only in R2. Never put a
 
 All write and permission-sensitive operations go through the Worker. The browser never receives database credentials, Better Auth secrets, R2 access keys or raw storage object keys.
 
-| Route                              | Purpose                                                   | Introduced |
-| ---------------------------------- | --------------------------------------------------------- | ---------- |
-| `/api/health`                      | Minimal health/version status; no secrets or account data | v0.1       |
-| `/api/auth/*`                      | Better Auth endpoints and OAuth callbacks                 | v0.5       |
-| `/api/projects`                    | Create/list cloud projects                                | v0.5       |
-| `/api/projects/:id`                | Read/update/delete an owned project                       | v0.5       |
-| `/api/uploads/init`                | Create upload session and return short-lived R2 PUT URL   | v0.5       |
-| `/api/uploads/:id/complete`        | Verify uploaded object and finalize asset                 | v0.5       |
-| `/api/uploads/:id/cancel`          | Cancel session and remove unfinished object               | v0.5       |
-| `/api/share/:token/access`         | Resolve a link and check its permissions                  | v0.6       |
-| `/api/share/:token/playback/:role` | Issue a short-lived GET URL for an allowed asset          | v0.6       |
-| `/api/projects/:id/links`          | Create, list and revoke links for the owner               | v0.6       |
-| `/api/projects/:id/vote`           | Submit/update preferred-version vote                      | v0.7       |
-| `/api/projects/:id/comments`       | Create/list timestamped comments                          | v0.7       |
-| `/api/comments/:id/replies`        | Reply to a comment                                        | v0.7       |
-| `/api/share/:token/download/:role` | Issue a permitted attachment download URL                 | v0.8       |
-| `/api/uploads/multipart/*`         | Create, sign, complete and abort multipart uploads        | v0.8       |
+| Route                              | Purpose                                                           | Introduced |
+| ---------------------------------- | ----------------------------------------------------------------- | ---------- |
+| `/api/health`                      | Minimal health/version status; no secrets or account data         | v0.1       |
+| `/api/auth/*`                      | Better Auth endpoints and OAuth callbacks                         | v0.5       |
+| `/api/projects`                    | Create/list cloud projects                                        | v0.5       |
+| `/api/projects/:id`                | Read/update/delete an owned project                               | v0.5       |
+| `/api/uploads/init`                | Create upload session and return short-lived upload authorization | v0.5       |
+| `/api/uploads/:id/complete`        | Verify uploaded object and finalize asset                         | v0.5       |
+| `/api/uploads/:id/cancel`          | Cancel session and remove unfinished object                       | v0.5       |
+| `/api/uploads/multipart/*`         | Start, authorize parts, complete and abort resumable R2 uploads   | v0.7       |
+| `/api/share/:token/access`         | Resolve a link and check its permissions                          | v0.6       |
+| `/api/share/:token/playback/:role` | Issue a short-lived GET URL for an allowed asset                  | v0.6       |
+| `/api/projects/:id/links`          | Create, list and revoke links for the owner                       | v0.6       |
+| `/api/projects/:id/vote`           | Submit/update preferred-version vote                              | v0.7       |
+| `/api/projects/:id/comments`       | Create/list timestamped comments                                  | v0.7       |
+| `/api/comments/:id/replies`        | Reply to a comment                                                | v0.7       |
+| `/api/share/:token/download/:role` | Issue a permitted attachment download URL                         | v0.8       |
+| `/api/storage-connections/*`       | Link, inspect and revoke an owner-authorized storage provider     | v0.8       |
+| `/api/projects/:id/storage`        | Select or inspect a project's storage destination                 | v0.8       |
 
 ### API security requirements
 
@@ -473,6 +482,9 @@ All write and permission-sensitive operations go through the Worker. The browser
 - Apply same-origin/CSRF protections to state-changing routes and secure cookie settings.
 - Validate `Origin`, method, content type, body size and schema.
 - Use short-lived presigned URLs; never return R2 secret keys or permanent public object URLs.
+- Do not enforce a fixed application per-file cap after v0.7. Enforce non-empty files, truthful size/type, current provider limits, account/project aggregate quota, available storage budget and abuse controls server-side.
+- Multipart sessions are owner/project scoped and idempotent. Authorize every part URL, verify the completed object, and provide explicit complete, cancel and abort paths; abandoned parts must be reclaimed promptly.
+- For v0.8 linked storage, keep OAuth access/refresh tokens server-side and encrypted at rest with a rotatable key. Use PKCE/state, provider-specific least-privilege scopes, never log or expose tokens, and revoke credentials when the owner disconnects a provider.
 - Return generic access errors that do not reveal whether a private project ID exists.
 - Keep server logs free of raw passwords, tokens, signed URLs, audio contents and unnecessary personal data.
 
@@ -486,10 +498,11 @@ All write and permission-sensitive operations go through the Worker. The browser
 2. Client checks extension, reported MIME, size, browser capability and local metadata.
 3. Client requests an upload session from Worker.
 4. Worker confirms ownership/guest capability, project status, expiry, quota and file limit.
-5. Worker creates a random R2 object key and issues a short-lived presigned PUT URL for that exact object and content type.
-6. Browser uploads directly to R2 and reports actual byte progress.
-7. Browser calls `complete`; Worker verifies object existence and expected size/content type, then marks the asset ready.
-8. If upload fails or is abandoned, cleanup removes its temporary object and upload-session metadata.
+5. Worker reserves the declared size against the project's aggregate storage budget and selects a single PUT or multipart flow; the selection threshold is not a per-file rejection limit.
+6. Worker creates a random R2 object key and issues short-lived, part-scoped upload authorization for that exact object and content type.
+7. Browser uploads directly to R2, reports byte progress and retries/resumes failed parts without sending audio through the Worker.
+8. Browser calls `complete`; Worker verifies the final object, exact byte size, content type and quota, then marks the asset ready.
+9. If upload fails or is abandoned, explicit cancellation aborts its multipart session and cleanup removes staged data and upload-session metadata.
 
 ### Playback lifecycle
 
@@ -507,9 +520,9 @@ All write and permission-sensitive operations go through the Worker. The browser
 3. Worker issues a short-lived attachment URL with a safe filename.
 4. Download never depends on a permanent public bucket URL.
 
-### Resumable uploads
+### Resumable uploads (v0.7)
 
-The first cloud upload release uses one PUT per file and a 100 MB cap. Add multipart/resumable uploads later for larger files. Multipart handling must have explicit complete/abort paths and remove abandoned multipart uploads. The application's own maximum remains configurable and must never be raised simply because R2 technically accepts larger objects.
+The v0.6 release has a 100 MiB per-file cap and a single PUT that restarts from byte zero after an interruption. In v0.7, remove that application per-file cap and add direct-to-R2 multipart/resumable uploads. Use a measured strategy threshold to choose between one PUT and multipart; the threshold must not reject a file. Enforce provider limits and aggregate project/account/storage budgets instead. Reserve quota before issuing part URLs, verify the completed object's actual size, and release the reservation on completion or cancellation. Bound part concurrency, retry only failed parts, persist resumable session state safely, and expose clear pause/resume/cancel/error progress. Provide explicit complete/abort paths and reclaim abandoned multipart data promptly. Never proxy the audio through a Worker.
 
 ---
 
@@ -634,7 +647,7 @@ The first cloud upload release uses one PUT per file and a 100 MB cap. Add multi
 - Guest creator mode with a distinct high-entropy owner capability and recovery link.
 - Creator dashboard with cloud project list/create/edit/delete.
 - Explicit **Save to cloud** action; never upload local files without informed user action.
-- Direct-to-R2 presigned PUT uploads with a 100 MB per-file starting limit.
+- Direct-to-R2 presigned PUT uploads with the initial 100 MiB per-file cap (removed by v0.7 multipart upload work).
 - Upload progress, cancellation, retry and server-side finalize verification.
 - Cloud project expiry selector (1/7/14/30/60/90 days) and visible expiry countdown; actual background purge arrives in v0.9.
 - Per-user and per-guest project/storage caps.
@@ -676,7 +689,7 @@ The first cloud upload release uses one PUT per file and a 100 MB cap. Add multi
 
 ### v0.7 — Feedback, preference votes and comment threads
 
-**Purpose:** Turn a player into a complete review workflow.
+**Purpose:** Turn a player into a complete review workflow and remove the arbitrary per-track cloud upload cap with reliable large-file transfer.
 
 **Build**
 
@@ -690,6 +703,11 @@ The first cloud upload release uses one PUT per file and a 100 MB cap. Add multi
 - Comment validation, length limits, basic rate limits and anti-spam protection.
 - Dashboard summary: preferred version counts and recent comment activity.
 - Empty, loading, submitted and error states designed for both themes.
+- Replace the fixed 100 MiB app per-file cap with single-PUT/multipart strategy selection; the selection threshold must never reject a file.
+- Direct-to-R2 multipart/resumable upload URLs, bounded part concurrency, per-part retry, pause/resume/cancel and explicit complete/abort.
+- Reserve/release storage against project/account aggregate quotas, verify final object size and content type, and reclaim abandoned multipart data. Keep audio bytes off the Worker.
+- Keep a configurable Switchroom R2 aggregate budget below the current free-tier allowance, with visible usage, in-flight storage accounting and graceful stop before the free budget is exhausted.
+- Stream media through browser media elements; waveform analysis must stay memory-bounded and fall back to a timeline when large files exceed analysis budgets.
 
 **Acceptance gate**
 
@@ -698,19 +716,58 @@ The first cloud upload release uses one PUT per file and a 100 MB cap. Add multi
 - Guest and signed-in identities cannot impersonate the project owner.
 - Duplicate votes are handled consistently; a participant can update their own choice if enabled.
 - Feedback can be fully disabled by the creator.
+- There is no application-defined per-file maximum; backend/provider technical limits and the remaining aggregate project/account storage budget remain enforced.
+- Interrupted uploads resume from completed parts; failed/cancelled uploads never become ready assets and their reservations/staged parts are eventually released.
+- Uploading and playing large files does not buffer the full audio into Worker memory or unbounded browser arrays; waveform fallback remains usable.
+- Exhausting the Switchroom-managed R2 budget blocks only new R2 storage use with a clear message; it does not silently turn into a per-file size cap.
 
-### v0.8 — Downloads, resumable uploads and advanced playback polish
+### v0.7.5 — Premium comparison workspace and UI refinement
 
-**Purpose:** Complete the core professional handoff features and improve larger-file reliability.
+**Purpose:** Make comparison and project management feel cohesive, polished and responsive across local and cloud projects. This is a dedicated UI milestone; it must preserve audio clarity, accessibility and straightforward workflows.
+
+**Build**
+
+- Derive persistence badges and privacy copy from actual project and asset state. Remove stale “Local-only” labels and “never uploaded” claims as soon as a project is saved or shared to cloud; keep workspace, project list and sharing states in sync.
+- Make local and cloud projects immediately distinguishable, with clear storage/source indicators and accurate open, closed, syncing, offline, unavailable and expired states. A locally saved setup must not be presented as a cloud project.
+- Fix waveform loading for reopened cloud projects: retrieve authorized audio metadata, generate or load a bounded waveform representation, show progress and intentional loading/empty/error states, and preserve the low-memory timeline fallback for long files.
+- Redesign the comparison workspace as a responsive grid that uses desktop width without stretching controls. Explore a compact vertical control rail for volume and crossfade alongside the player and timeline; keep playback actions prominent and group secondary settings, toggles and tools by task.
+- Define predictable placement for sticky playback controls, floating contextual actions and independently scrollable panels. Keep scrolling intuitive, avoid nested or parallel-scroll traps, and collapse cleanly to a single-column mobile layout.
+- Refine recent/closed project cards: align dates and metadata to a shared grid, improve hierarchy and spacing, and use familiar compact action icons where clear. Provide accessible names/tooltips; use confirmation for confirm and trash for delete, with undo or confirmation for destructive actions.
+- Establish a consistent icon, button, toggle, segmented-control and focus-state system across the app. Keep visible labels when an icon could be ambiguous, with keyboard focus, accessible names, adequate hit areas and clear disabled/loading states.
+- Add polished progress feedback for cloud save/open, upload, waveform generation, export and download. Show determinate progress only when measurable; otherwise use honest indeterminate progress, with clear completion, retry and cancel actions.
+- Elevate backgrounds and containers with restrained layered gradients, subtle grain or audio-inspired linework, clearer surface hierarchy and intentional depth. Maintain legibility in light and dark themes; keep visual effects subordinate to waveforms and controls.
+- Add purposeful interaction details: brief transitions, tactile control feedback, waveform/playhead response and saved-state confirmation. Use ambient particles or signal accents sparingly and only where they reinforce audio activity; respect reduced-motion preferences, pause decorative motion when hidden and keep effects inexpensive.
+- Make Standard, Player, Waveform and Compact layout presets feel like distinct, useful compositions rather than simple density changes.
+- Audit empty, loading, error, offline, syncing, ready, paused, disabled and destructive-confirmation states across the workspace, project cards, dialogs and guest review page.
+- Capture refreshed desktop and phone screenshots after implementation; center and size phone shots consistently, presenting them side by side where space allows.
+
+**Acceptance gate**
+
+- Saving or sharing a local project to cloud immediately updates every persistence and privacy indicator; no stale local-only claim remains.
+- Reopening a cloud project displays its waveform when available, with visible loading and useful fallback/error states.
+- Local and cloud projects, including open/closed/syncing states, are distinguishable without relying on colour alone.
+- Desktop layouts use available width intentionally, with aligned controls and no large unused side regions; mobile layouts remain usable without horizontal or nested-scroll traps.
+- Project-card dates, titles, metadata and actions align consistently at supported widths. Icon-only actions have accessible names/tooltips; destructive actions have undo or confirmation.
+- Save, open, upload, export and waveform work communicate progress and provide completion or recovery feedback.
+- Motion is restrained, performs well on typical devices and respects reduced-motion preferences; decorative particles never obscure controls or audio content.
+- Keyboard access, screen-reader labels, contrast, focus visibility and touch targets work across both themes and responsive layouts.
+- Refreshed screenshots represent the shipped interface and are composed cleanly in the README.
+
+### v0.8 — Linked storage providers, downloads and advanced playback polish
+
+**Purpose:** Let creators optionally use storage they already own while completing the client handoff workflow.
 
 **Build**
 
 - Creator-controlled downloads for Original and Edited.
 - Safe, temporary attachment URLs and sanitized download filenames.
 - Optional download of the client's selected version, with clear role labels.
-- Multipart/resumable R2 uploads for larger files.
-- Retry failed parts, resume interrupted uploads and abort abandoned uploads.
-- Configurable upload size tiers, subject to app-level storage limits.
+- Optional Google Drive and Dropbox connections as storage destinations, retaining private Switchroom R2 as an alternative.
+- Provider adapters with per-project storage selection, storage/connection status and clear account-quota ownership; never present a provider's free tier as extra Switchroom-controlled capacity.
+- OAuth authorization-code flows with PKCE/state and least-privilege scopes; store provider refresh/access tokens encrypted at rest in the Worker data boundary, never in browser storage, URLs or logs.
+- Direct/resumable upload to each provider where supported. Never proxy full audio through the Worker. Audit provider API size limits, rate limits, CORS, Range/streaming, temporary URL lifetime and account terms before enabling each provider.
+- Serve shared playback through an authorized temporary provider URL when safe; otherwise use a bounded, Range-aware Worker proxy only if performance, cost and provider terms pass review. Never create public provider links as a shortcut.
+- Disconnect/revoke provider authorization. Remove stored tokens while leaving files in the creator's account unless the creator separately confirms deletion.
 - Playback URL refresh when temporary URLs expire.
 - Further test coverage for long WAV/FLAC playback and mobile background/resume behaviour.
 - Optional loudness-match preview can be investigated, but must be off by default and must never modify the source files.
@@ -718,10 +775,14 @@ The first cloud upload release uses one PUT per file and a 100 MB cap. Add multi
 **Acceptance gate**
 
 - A client downloads only the assets and versions the creator allowed.
-- Interrupting a multipart upload does not mark the asset complete.
+- Google Drive and Dropbox connections pass least-scope, token-at-rest, disconnect/revocation and provider-quota tests.
+- A disconnected, expired or rate-limited provider shows a recoverable state and never exposes its credentials.
+- Guest review links can play only authorized project assets from linked storage; provider files remain private and no permanent public provider link is created.
+- The user can distinguish Switchroom R2 usage from each linked provider's storage/quota; external storage remains governed by its owner's provider plan.
+- Disconnecting storage removes tokens but does not delete provider files unless the owner explicitly requests and confirms deletion.
 - Completed downloads retain their original audio bytes; no unintended re-encoding.
 - Long audio playback and seeking do not require loading the whole file into JavaScript memory.
-- The upload cap shown in the UI matches server-side enforcement.
+- No fixed application per-file cap is reintroduced; the UI explains provider limits, account/project quota and available storage rather than claiming unlimited capacity.
 
 ### v0.9 — Retention automation, security and production hardening
 
@@ -966,7 +1027,11 @@ Use Playwright for UI/API regression tests and maintain a small set of public-do
 - [ ] Project expiry and link expiry are checked server-side on every access.
 - [ ] Guest writes are rate-limited and Turnstile-protected where appropriate.
 - [ ] Filenames are sanitized; object keys are generated, not derived from filenames.
-- [ ] File extension, MIME, size and file signature are validated.
+- [ ] File extension, MIME and file signature are validated; the server verifies the declared size against the completed object and aggregate storage quota without a fixed product per-file cap.
+- [ ] R2 multipart uploads have scoped short-lived part authorization, bounded concurrency, explicit completion/abort, accurate quota reservations and prompt abandoned-part cleanup.
+- [ ] Linked-provider OAuth uses PKCE/state and least privilege; refresh tokens are encrypted at rest, rotatable, revocable and absent from browser storage, URLs and logs.
+- [ ] Linked-provider playback and downloads never depend on a public provider share link; link permissions are checked before issuing temporary access.
+- [ ] Disconnecting a linked provider revokes/removes Switchroom credentials without deleting provider-owned files unless the owner explicitly confirms deletion.
 - [ ] Uploaded media is served with a correct audio content type and safe disposition.
 - [ ] Content Security Policy and other security headers are configured.
 - [ ] Cookies use Secure, HttpOnly and an appropriate SameSite policy.
@@ -981,18 +1046,21 @@ Use Playwright for UI/API regression tests and maintain a small set of public-do
 
 ## 17. Risks and mitigations
 
-| Risk                                   | Why it matters                                                               | Mitigation                                                                                                         |
-| -------------------------------------- | ---------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
-| Free R2 capacity is small              | A few long WAV projects can consume the 10 GB-month allowance.               | 100 MB initial per-file cap, app-level storage ceiling, 30-day default expiry, visible usage meter and cleanup.    |
-| Browser codec differences              | `.aac` and `.m4a` extensions do not guarantee a universally supported codec. | Capability detection, actual load handling, compatibility matrix and clear error messages.                         |
-| Smooth switching can desync            | Two media elements have independent buffering and seek timing.               | One canonical transport controller; synchronize the inactive deck before ramping; test rapid switches.             |
-| Web Audio memory pressure              | Fully decoding long WAV files is expensive.                                  | Use media elements for playback; generate waveforms separately; use a fallback timeline.                           |
-| Presigned URL leakage                  | A presigned URL is a temporary bearer credential.                            | Short expiry, exact object scope, no persistent storage/logging, reissue after access check.                       |
-| Guest project recovery                 | Guest creators do not have an account to recover projects.                   | Separate owner capability secret, save/recovery screen and optional account claim.                                 |
-| Abuse of guest upload/comments         | Public guest access can attract spam or storage abuse.                       | Turnstile, rate limits, quotas, max size, expiry and storage budget.                                               |
-| Free service changes                   | A provider can alter quotas or features.                                     | Document dependencies, keep provider adapters narrow, review quotas before releases and maintain a migration path. |
-| D1 semantics differ from Postgres      | D1 uses SQLite and lacks interactive transactions.                           | Use bounded batches, idempotent state transitions and integration tests for multi-step writes.                     |
-| Motion hurts accessibility/performance | Strong animation can overwhelm clients or low-end devices.                   | Reduced-motion support, restrained effects, no heavy background WebGL, performance budget.                         |
+| Risk                                   | Why it matters                                                                | Mitigation                                                                                                                              |
+| -------------------------------------- | ----------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| Free R2 capacity is small              | Long WAV projects and incomplete multipart sessions consume shared storage.   | No fixed per-file cap; enforce aggregate usage below the free-tier budget, account for in-flight parts, show usage and expire/clean up. |
+| Linked provider access is revoked      | OAuth tokens expire, are revoked or lose required scopes.                     | Clear connection state, safe reauthorization, token revocation and no impact to the user's underlying files.                            |
+| Provider APIs differ                   | Upload limits, scopes, CORS, Range playback, quotas and review policies vary. | Narrow provider adapters; certify Google Drive and Dropbox individually; ship only integrations that pass security and playback gates.  |
+| Provider credentials leak              | Refresh tokens can grant ongoing access to a user's private storage.          | Least-privilege OAuth, encryption at rest, key rotation, server-only handling, no logging and disconnect/revoke support.                |
+| Browser codec differences              | `.aac` and `.m4a` extensions do not guarantee a universally supported codec.  | Capability detection, actual load handling, compatibility matrix and clear error messages.                                              |
+| Smooth switching can desync            | Two media elements have independent buffering and seek timing.                | One canonical transport controller; synchronize the inactive deck before ramping; test rapid switches.                                  |
+| Web Audio memory pressure              | Fully decoding long WAV files is expensive.                                   | Use media elements for playback; bound waveform analysis separately; fall back to a timeline instead of loading whole audio in memory.  |
+| Presigned URL leakage                  | A presigned URL is a temporary bearer credential.                             | Short expiry, exact object scope, no persistent storage/logging, reissue after access check.                                            |
+| Guest project recovery                 | Guest creators do not have an account to recover projects.                    | Separate owner capability secret, save/recovery screen and optional account claim.                                                      |
+| Abuse of guest upload/comments         | Public guest access can attract spam or storage abuse.                        | Turnstile, rate limits, aggregate quotas, expiry, storage budget and multipart cleanup—without an arbitrary per-file cap.               |
+| Free service changes                   | A provider can alter quotas or features.                                      | Document dependencies, keep provider adapters narrow, review quotas before releases and maintain a migration path.                      |
+| D1 semantics differ from Postgres      | D1 uses SQLite and lacks interactive transactions.                            | Use bounded batches, idempotent state transitions and integration tests for multi-step writes.                                          |
+| Motion hurts accessibility/performance | Strong animation can overwhelm clients or low-end devices.                    | Reduced-motion support, restrained effects, no heavy background WebGL, performance budget.                                              |
 
 ---
 
@@ -1130,6 +1198,12 @@ These official/current documentation pages informed the architecture and quota n
 - [R2 upload methods](https://developers.cloudflare.com/r2/objects/upload-objects/) — single PUT versus multipart upload guidance.
 - [R2 CORS configuration](https://developers.cloudflare.com/r2/buckets/cors/) — required browser policy for presigned URLs.
 
+### Linked personal storage providers (v0.8)
+
+- [Google Drive OAuth for web-server apps](https://developers.google.com/identity/protocols/oauth2/web-server) — user authorization, scopes and server-side token handling.
+- [Google Drive upload methods](https://developers.google.com/drive/api/guides/manage-uploads) — simple, multipart and resumable provider uploads.
+- [Dropbox OAuth guide](https://developers.dropbox.com/oauth-guide) — OAuth scopes, App Folder versus Full Dropbox and token revocation.
+
 ### Authentication, bot protection and email
 
 - [Better Auth 1.5: Cloudflare D1 support](https://better-auth.com/blog/1-5) — native D1 support; note D1's batch-based rather than interactive transaction model.
@@ -1157,6 +1231,6 @@ These official/current documentation pages informed the architecture and quota n
 
 ## Final recommendation
 
-Build Switchroom in this order: **local player first, reliable crossfade second, visual timeline third, local workspaces fourth, cloud projects fifth, client sharing sixth, feedback seventh, downloads and resumable uploads eighth, automatic deletion/security ninth, stable public release tenth.**
+Build Switchroom in this order: **local player first, reliable crossfade second, visual timeline third, local workspaces fourth, cloud projects fifth, client sharing sixth, feedback and per-file-cap removal through resumable uploads in v0.7, premium comparison workspace and UI refinement in v0.7.5, linked personal storage and downloads in v0.8, automatic deletion/security ninth, stable public release tenth.**
 
 The first public release should already solve the exact problem: upload two local audio files, switch between them at the same timestamp, and hear a smooth transition. Everything after that adds persistence, client collaboration and production readiness without delaying the first useful release.

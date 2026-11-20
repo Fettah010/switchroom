@@ -117,3 +117,30 @@ preview smoke and public smoke all pass.
 - Strict upload quotas (100 MB max per file, 1–90 days retention, 2 assets per project).
 - Local-first architecture preserved: 100% functional offline without cloud or login.
 - Verified with 242 unit tests, 45 Chromium Playwright specs, 45 Firefox Playwright specs, and 0 lint/typecheck errors.
+
+## v0.6.0 Implementation Log — COMPLETE
+
+- Client sharing system with public, unlisted, and private invite links.
+- Short-lived R2 presigned playback URLs (5-minute target) issued via authorization checks.
+- Guest review page (`/review/<token>`) featuring focused synchronized player without account requirements.
+- Revocation and expiry lifecycles with immediate server-side state enforcement.
+- Data-preserving D1 migration `0002_client_sharing.sql`.
+- Verified with 255 Vitest tests and 48 Chromium E2E specs.
+
+## v0.7.0 Implementation Log — COMPLETE
+
+- Client Feedback & Preferred-Version Voting:
+  - Original vs Edited toggle votes with aggregated totals and participant identity cookies (`switchroom_partic_<id>`).
+  - Timeline-pinned timestamped comments seeking player directly without interrupting or restarting playback.
+  - Single-level threaded replies with clear `Creator` role badges.
+  - Creator moderation and author soft deletion (`deleted_at`), retaining thread structure.
+  - Project-level `feedback_enabled` toggle and server-side authorization enforcement.
+- Creator Dashboard Metrics & Storage Display:
+  - Preferred vote counts and total comments displayed on cloud project cards with expandable comments drawer.
+  - Storage quota meter banner visualizing committed + reserved bytes against account (2 GB) and guest (300 MB) limits.
+- Resumable Direct-to-R2 Multipart Uploads:
+  - Dynamic strategy threshold ($\ge 50\text{ MB}$) for chunked multipart uploads with zero audio byte Worker proxying.
+  - Bounded concurrency pool (3 chunks) with exponential backoff retry and real byte-level progress reporting.
+  - In-flight storage quota reservation accounting against project/user and aggregate Switchroom R2 budget (8 GB ceiling).
+  - Pause, resume, cancel, and abort lifecycle with verified server-side R2 object completion.
+- Verified with 275 Vitest tests across 30 files, 53 Playwright E2E tests, clean typecheck, and clean ESLint.

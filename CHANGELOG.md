@@ -2,6 +2,33 @@
 
 All notable changes to Switchroom are recorded here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses [Semantic Versioning](https://semver.org/).
 
+## [0.7.0] — 2026-11-20
+
+### Added
+
+- **Client feedback and preferred-version voting:** guests and collaborators can vote for their preferred version (`Original` vs `Edited`) with instant count updates and toggle support.
+- **Project-scoped participant identity:** anonymous and authenticated participants are registered per-project with secure `HttpOnly` participant cookies (`switchroom_partic_<id>`), persisted display names, and distinct creator attribution.
+- **Timestamped review comments:** comments can be pinned to exact timeline points; clicking any comment's timestamp seeks the player directly to that time without interrupting or restarting A/B playback.
+- **Single-level threaded replies:** structured 1-level discussion threads allowing creator and client replies with unambiguous `Creator` role badges.
+- **Creator moderation and author deletion:** authors and creators can delete comments; soft deletion preserves parent-child thread continuity without orphaning replies.
+- **Project-level feedback toggle:** creators can toggle `feedback_enabled` on/off in the share settings, with strict server-side enforcement blocking voting and commenting writes when disabled.
+- **Creator dashboard feedback and storage metrics:** cloud dashboard project cards now display preferred vote counts, total comments count, and an expandable comments drawer. An account/guest storage quota meter visualizes used vs limit storage with a progress bar.
+- **Resumable direct-to-R2 multipart uploads:** files $\ge$ 50 MiB automatically use direct-to-R2 multipart uploads with 10 MiB chunks, bounded concurrency pool (default 3), chunk retries with exponential backoff, and accurate byte-level progress accounting.
+- **In-flight storage reservation:** upload session initialization atomically reserves expected byte size against user/guest limits and the global Switchroom R2 budget (8 GB ceiling), releasing reservation idempotently upon completion, abort, or cancellation.
+- **Verified object completion:** server-side R2 `HEAD` check verifies truthful object byte sizes and sets asset status to `ready` with audio bytes kept entirely off Worker memory.
+
+### Preserved
+
+- 100% offline local-first comparison without login or server dependencies.
+- Zero audio byte proxying through Cloudflare Workers.
+- Scope boundary strictly maintained: presetting/UI redesign (v0.7.5), external linked storage/downloads (v0.8), and automated retention cleanup crons (v0.9) remain deferred.
+
+### Verified
+
+- 275 Vitest unit and integration tests passing across 30 files (including feedback service, storage quota reservation, cloud dashboard modal, save to cloud modal, and review page tests).
+- 53 Playwright E2E tests passing in Chromium (including `feedback.spec.ts` and `multipart.spec.ts`).
+- Strict TypeScript (`tsc --noEmit`) and ESLint (`eslint .`) pass with zero errors and zero warnings.
+
 ## [0.6.0] — 2026-11-19
 
 ### Added

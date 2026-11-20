@@ -107,6 +107,7 @@ sharingRoute.get('/share/:token/access', async (c) => {
     return c.json(
       {
         project: {
+          id: access.project.id,
           title: access.project.title,
           description: access.project.description,
           original: {
@@ -478,6 +479,14 @@ sharingRoute.patch('/projects/:id/sharing', async (c) => {
     updates.public_indexing_enabled = 0;
   }
 
+  if (body.feedback_enabled !== undefined) {
+    updates.feedback_enabled = Boolean(body.feedback_enabled);
+  }
+
+  if (body.downloads_enabled !== undefined) {
+    updates.downloads_enabled = Boolean(body.downloads_enabled);
+  }
+
   if (body.password !== undefined) {
     if (!isPasswordProtectionEnabled(c.env)) {
       return c.json(
@@ -530,6 +539,8 @@ sharingRoute.patch('/projects/:id/sharing', async (c) => {
       visibility?: ProjectVisibility;
       publicIndexingEnabled?: boolean;
       passwordHash?: string | null;
+      feedbackEnabled?: boolean;
+      downloadsEnabled?: boolean;
     } = {
       title: undefined,
       description: undefined,
@@ -546,6 +557,12 @@ sharingRoute.patch('/projects/:id/sharing', async (c) => {
     }
     if (updates.password_hash !== undefined) {
       updateData.passwordHash = updates.password_hash as string | null;
+    }
+    if (updates.feedback_enabled !== undefined) {
+      updateData.feedbackEnabled = Boolean(updates.feedback_enabled);
+    }
+    if (updates.downloads_enabled !== undefined) {
+      updateData.downloadsEnabled = Boolean(updates.downloads_enabled);
     }
 
     const updated = await updateProject(c.env.DB, project.id, updateData);
